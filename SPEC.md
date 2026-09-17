@@ -176,13 +176,33 @@ The off-chain scoring model consumes seven features per agent.
 | `prior_defaults`         | `int`   | `>= 0`, mostly 0                         |
 | `counterparty_diversity` | `int`   | `>= 0`, distinct agents transacted with  |
 
-The model predicts `default_probability`. Score is the inverse, mapped to `0-1000`:
+The model predicts `default_probability`. **Low risk means a high score.**
+
+The raw probability is deliberately *not* used as the score. At a ~15% base default rate it
+pushes 79% of agents above 800, so nearly everyone qualifies for the cheapest collateral
+tier and the curve in section 3 stops discriminating. Per-feature point impacts also
+saturate to near zero at the extremes, which breaks the explanation the service exists to
+give.
+
+Instead the score is **linear in log-odds**, the standard credit-scoring calibration:
 
 ```
-score = round((1 - default_probability) * 1000)
+logit = ln(default_probability / (1 - default_probability))
+score = clamp(round(ANCHOR - FACTOR * (logit - MEDIAN_LOGIT)), 0, 1000)
 ```
 
-clamped to `[0, 1000]`, so **low risk means a high score**.
+| Constant       | Value                   | Meaning                                                      |
+| -------------- | ----------------------- | ------------------------------------------------------------ |
+| `ANCHOR`       | `500`                   | The median agent scores 500, matching the on-chain starting score. |
+| `FACTOR`       | `100 / ln(2)` ≈ `144.27` | 100 points per doubling of the odds of default.               |
+| `MEDIAN_LOGIT` | fitted                  | Median logit over the training split. Written to `models/calibration.json` by `train.py`. |
+
+Because the mapping is linear in log-odds, a feature's effect in points is exactly
+`-FACTOR * (coefficient * standardized_value)`. Point impacts therefore stay stable across
+the whole range instead of collapsing at the extremes, which is what makes
+"this agent lost 40 points from one disputed job" a true statement rather than a slogan.
+
+Resulting population spread: roughly 5% `excellent`, 19% `good`, 47% `fair`, 29% `poor`.
 
 ---
 
