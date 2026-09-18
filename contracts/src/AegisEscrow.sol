@@ -34,6 +34,7 @@ contract AegisEscrow is IAegisEscrow {
     error NotWorker();
     error BadState(JobState current);
     error ZeroAddress();
+    error SelfHire();
 
     constructor(IAegisRegistry registry_, IERC20 usdc_) {
         if (address(registry_) == address(0) || address(usdc_) == address(0)) revert ZeroAddress();
@@ -51,6 +52,8 @@ contract AegisEscrow is IAegisEscrow {
     ///      change what this job already collected. Job is born Funded: there is no separate
     ///      funding step (SPEC.md section 1, matching StubEscrow).
     function createJob(address worker, uint256 value) external returns (uint256 jobId) {
+        if (worker == address(0)) revert ZeroAddress();
+        if (worker == msg.sender) revert SelfHire();
         uint16 bps = registry.requiredCollateralBps(msg.sender);
         uint256 collateralTaken = (value * bps) / 10000;
 

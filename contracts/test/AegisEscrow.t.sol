@@ -81,6 +81,16 @@ contract AegisEscrowTest is Test {
         assertEq(usdc.balanceOf(address(escrow)), expectedCollateral);
     }
 
+    function test_createJob_rejectsSelfHireAndZeroWorker() public {
+        vm.expectRevert(AegisEscrow.SelfHire.selector);
+        vm.prank(hirer);
+        escrow.createJob(hirer, VALUE);
+
+        vm.expectRevert(AegisEscrow.ZeroAddress.selector);
+        vm.prank(hirer);
+        escrow.createJob(address(0), VALUE);
+    }
+
     function _fullFlow() internal returns (uint256 jobId) {
         vm.prank(hirer);
         jobId = escrow.createJob(worker, VALUE);

@@ -78,4 +78,14 @@ contract StubEscrowTest is Test {
         assertEq(value, VALUE);
         assertEq(registry.requiredCollateralBps(hirer), 10000);
     }
+
+    function test_createJob_rejectsSelfHireAndZeroWorker() public {
+        vm.expectRevert(StubEscrow.SelfHire.selector);
+        vm.prank(hirer);
+        escrow.createJob(hirer, VALUE);
+
+        vm.expectRevert(StubEscrow.ZeroAddress.selector);
+        vm.prank(hirer);
+        escrow.createJob(address(0), VALUE);
+    }
 }

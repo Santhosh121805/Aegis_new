@@ -30,6 +30,8 @@ contract StubEscrow is IAegisEscrow {
     error NotHirer();
     error NotWorker();
     error BadState(JobState current);
+    error ZeroAddress();
+    error SelfHire();
 
     constructor(IAegisRegistry registry_) {
         registry = registry_;
@@ -38,6 +40,8 @@ contract StubEscrow is IAegisEscrow {
     /// @notice Job ids start at 1. There is no separate funding step, so a job is Funded on
     ///         creation; collateral is quoted against the hirer's score (SPEC.md section 3).
     function createJob(address worker, uint256 value) external returns (uint256 jobId) {
+        if (worker == address(0)) revert ZeroAddress();
+        if (worker == msg.sender) revert SelfHire();
         jobId = ++jobCount;
         jobs[jobId] = Job({hirer: msg.sender, worker: worker, value: value, state: JobState.Funded});
 
