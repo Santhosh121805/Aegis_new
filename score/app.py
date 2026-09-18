@@ -26,6 +26,14 @@ MODELS_DIR = Path(__file__).parent / "models"
 
 MIN_SCORE, MAX_SCORE = 0, 1000
 
+# ESTIMATE, not an observation. OutcomeRecorded carries no counterparty, so when events arrive
+# without counterparty labels, diversity is estimated as this fraction of completed jobs. 0.6
+# sits near the training data's own ratio (generate_data.py draws it from Beta(4, 3), mean
+# 0.57). Pinning it at 1 instead froze the model's strongest experience signal and made a clean
+# job worth ~+1 point, or less than zero on a larger job. Replace with real counts once
+# OutcomeRecorded carries a counterparty (SPEC.md section 10).
+DIVERSITY_PER_JOB_ESTIMATE = 0.6
+
 
 # ---------------------------------------------------------------------------
 # Collateral curve
@@ -344,6 +352,11 @@ def score_agent(features: AgentFeatures, scoring_model: ScoringModel) -> ScoreRe
     )
 
 
+def estimate_counterparty_diversity(jobs_completed: int) -> int:
+    """ESTIMATE used only when no event carries a counterparty. See DIVERSITY_PER_JOB_ESTIMATE."""
+    return max(1, round(jobs_completed * DIVERSITY_PER_JOB_ESTIMATE))
+
+
 def derive_features(request: EventsRequest) -> AgentFeatures:
     """Collapse a job history into the seven model features.
 
@@ -378,9 +391,11 @@ def derive_features(request: EventsRequest) -> AgentFeatures:
         account_age_days=max(0, (as_of - min(timestamps)).days),
         on_time_payment_rate=clean_count / total,
         prior_defaults=total - delivered_count,
-        # With no counterparty labels we cannot observe diversity, so assume the pessimistic
-        # case of a single repeat partner rather than inventing a spread.
-        counterparty_diversity=len(counterparties) if counterparties else 1,
+        counterparty_diversity=(
+            len(counterparties)
+            if counterparties
+            else estimate_counterparty_diversity(delivered_count)
+        ),
     )
 
 

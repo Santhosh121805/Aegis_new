@@ -200,13 +200,19 @@ The off-chain scoring model consumes seven features per agent.
 
 The model predicts `default_probability`. **Low risk means a high score.**
 
-**`counterparty_diversity` is stubbed at `1` in the oracle path.** `OutcomeRecorded` carries
-no counterparty, and `msg.sender` is always the escrow, so the score service's
-`derive_features` assumes a single counterparty. Being constant it shifts every live agent by
-the same amount and does not reorder them. It has a second effect worth knowing: in the
-training data diversity rises with job count, so the model credits experience mostly through
-diversity (coefficient `-0.94`) rather than `jobs_completed` (`-0.17`). With diversity pinned,
-one more clean job is worth about +1 point.
+**`counterparty_diversity` is an ESTIMATE in the oracle path.** `OutcomeRecorded` carries no
+counterparty, and `msg.sender` is always the escrow, so when events arrive without counterparty
+labels the score service's `derive_features` estimates it as
+`max(1, round(jobs_completed * 0.6))`. `0.6` sits near the training data's own ratio
+(`generate_data.py` draws diversity as `jobs * Beta(4, 3)`, mean 0.57). Events that do carry
+a `counterparty` are counted exactly instead.
+
+It is not pinned at `1` on purpose. In the training data diversity rises with job count, so
+the model credits experience mostly through diversity (coefficient `-0.94`) rather than
+`jobs_completed` (`-0.17`). Pinned, one more clean job was worth about +1 point, and a clean
+job larger than the agent's average scored *negative*. With the estimate, a clean $500 job on
+the seeded HonestAgent is worth about +11. Replace the estimate with real counts once
+`OutcomeRecorded` carries a counterparty (section 10).
 
 The raw probability is deliberately *not* used as the score. At a ~15% base default rate it
 pushes 79% of agents above 800, so nearly everyone qualifies for the cheapest collateral
@@ -293,3 +299,7 @@ in proportion to how little history backs it (empirical-Bayes smoothing, e.g.
 history" rather than as a confident extreme. Not built: the demo seeds its agents with prior
 history instead (`agents/seed_demo.py`). Doing it properly means re-running
 `check_distribution.py` and re-tuning the seed.
+
+**Counterparty on `OutcomeRecorded`.** Adding the hirer's address to the event would let the
+oracle count `counterparty_diversity` exactly instead of estimating it from job count
+(section 7). An event change, so it waits until after the escrow build.

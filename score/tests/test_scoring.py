@@ -289,13 +289,27 @@ class TestFromEvents:
             > client.post("/score/from-events", json=messy).json()["score"]
         )
 
-    def test_missing_counterparties_assume_a_single_partner(self):
-        events = {
-            "events": [
-                {"delivered": True, "disputed": False, "value_usd": 50.0, "timestamp": "2026-01-01T00:00:00Z"}
-            ]
-        }
-        assert derive_features(EventsRequest(**events)).counterparty_diversity == 1
+    @staticmethod
+    def _unlabelled(delivered_jobs: int, defaults: int = 0) -> EventsRequest:
+        event = {"disputed": False, "value_usd": 50.0, "timestamp": "2026-01-01T00:00:00Z"}
+        return EventsRequest(events=[{**event, "delivered": True}] * delivered_jobs
+                             + [{**event, "delivered": False}] * defaults)
+
+    def test_missing_counterparties_are_estimated_from_completed_jobs(self):
+        assert derive_features(self._unlabelled(1)).counterparty_diversity == 1
+        assert derive_features(self._unlabelled(10)).counterparty_diversity == 6
+        assert derive_features(self._unlabelled(20)).counterparty_diversity == 12
+
+    def test_estimated_diversity_ignores_defaults_and_never_drops_below_one(self):
+        assert derive_features(self._unlabelled(0, defaults=3)).counterparty_diversity == 1
+        assert derive_features(self._unlabelled(10, defaults=5)).counterparty_diversity == 6
+
+    def test_one_more_clean_job_raises_the_score_without_counterparties(self):
+        def score(jobs: int) -> int:
+            return client.post("/score/from-events",
+                               json=self._unlabelled(jobs).model_dump(mode="json")).json()["score"]
+
+        assert score(21) > score(20)
 
     def test_naive_timestamps_are_accepted(self):
         events = {
