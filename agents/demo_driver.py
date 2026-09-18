@@ -66,7 +66,10 @@ def main() -> int:
     created = escrow.events.JobCreated().process_receipt(receipt, errors=DISCARD)[0]
     job_id = created.args.jobId
     created_at = w3.eth.get_block(receipt.blockNumber).timestamp
-    say(f"job #{job_id} is open, collateral posted {usd(created.args.collateralTaken)}")
+    hirer_score = registry.functions.getProfile(hirer.address).call()[1]
+    posted = created.args.collateralTaken
+    say(f"job #{job_id} is open. Posted {usd(posted)} upfront: "
+        f"{posted * 100 // value}% of {usd(value)}, not 100%, on my credit score of {hirer_score}")
 
     delivered = wait_for(
         lambda: escrow.events.JobDelivered().get_logs(

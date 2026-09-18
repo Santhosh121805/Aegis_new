@@ -13,6 +13,10 @@ ordinary job for both agents rather than a spike the model rightly reads as risk
 history a clean $500 job is worth about +11, and SloppyAgent's live lost dispute drops it
 to ~383: two tiers, 4000 -> 10000 bps.
 
+The demo's hirer (demo_driver.py) is seeded too. Collateral is quoted on the HIRER's score
+(SPEC.md section 3), so a hirer with no history posts 100% and the demo's headline number --
+20% upfront instead of 100% -- never appears. Its clean record puts it in "excellent".
+
 History is spread over time with Anvil's clock (evm_setNextBlockTimestamp), because account
 age is one of the seven features. The chain clock therefore ends about two years ahead of
 the wall clock. Local Anvil only.
@@ -87,6 +91,8 @@ def with_disputed_but_delivered(outcomes: list[SeedOutcome]) -> list[SeedOutcome
 PLANS = [
     SeedPlan("HonestAgent", clean(20), span_days=730),
     SeedPlan("SloppyAgent", with_disputed_but_delivered(clean(14)), span_days=380),
+    # The hirer's own track record, so it hires on 20% collateral rather than 100%.
+    SeedPlan("Hirer", clean(22), span_days=730),
 ]
 
 

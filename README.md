@@ -144,7 +144,8 @@ agents\.venv\Scripts\python agents\seed_demo.py
 ```
 
 Gives HonestAgent (account 1) and SloppyAgent (account 2) a prior track record so the demo
-does not start from a cold file: ~864 / excellent and ~613 / good. Idempotent; after a live
+does not start from a cold file: ~864 / excellent and ~613 / good. The driver's hirer
+(account 3) is seeded too (~875), so it hires on 20% collateral instead of 100%. Idempotent; after a live
 run, restart anvil and redeploy to seed again.
 
 ### Running the agents
