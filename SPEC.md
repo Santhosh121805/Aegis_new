@@ -168,14 +168,25 @@ interface IAegisEscrow {
 }
 ```
 
-### Stand-in escrow (local development)
+### Escrow implementations (local development)
 
-Until the real escrow deploys, `contracts/script/deploy_local.py` deploys
-`contracts/src/StubEscrow.sol` and points `escrow` at it. It implements this interface and
-the section 1 state machine, but moves no tokens and settles every dispute against the
-worker. `agents/seed_demo.py` temporarily points `escrow` at Anvil account 9 to record seed
-history, then hands it back. The agents use only the `IAegisEscrow` ABI, so swapping in the
-real escrow is an address change in `deployments/local.json`.
+`contracts/src/AegisEscrow.sol` is the real escrow and what `contracts/script/deploy_local.py`
+wires in, with `MockUSDC` (6 decimals) as the token. Real tokens move:
+
+- `createJob` takes the collateral (`value * requiredCollateralBps(hirer) / 10000`) from
+  the hirer, and `settle` of an accepted job takes the remainder, so **the hirer must approve
+  the full `value` before `createJob`**, not just the collateral.
+- If the remainder cannot be drawn, `settle` still succeeds: the worker is paid only the
+  collateral and the **hirer** is recorded as a default (`recordOutcome(hirer, false, false,
+  value)`). Nothing reverts, so an under-approving hirer silently loses score run over run.
+  `agents/demo_driver.py` approves the full value and exits loudly if this ever happens.
+- A disputed job refunds the hirer's collateral; the worker gets nothing.
+
+`contracts/src/StubEscrow.sol` remains as a fallback: same interface and state machine, no
+tokens, disputes always against the worker. `agents/select_escrow.py --stub` / `--real`
+switches between them, moving the Registry's `escrow` and `deployments/local.json`
+(`AegisEscrow`, `escrowIsStub`) together. `agents/seed_demo.py` temporarily points `escrow`
+at Anvil account 9 to record seed history, then hands it back to whichever is active.
 
 **When the real escrow deploys, `setEscrow` MUST point at it.** Otherwise `recordOutcome`
 reverts with `NotEscrow`: the escrow's `settle` either reverts with it, or, if the escrow
@@ -290,8 +301,8 @@ Base Sepolia. Solidity `^0.8.20`. OpenZeppelin for `Ownable` and `IERC20`.
 
 ## 9. Out of scope tonight
 
-Escrow logic, agent scripts, dashboard, and x402 integration are deliberately not built.
-The escrow interface exists so the registry can be wired against it later.
+x402 integration is deliberately not built. The dashboard is not built yet; its read API,
+`GET /agents/state`, is (sample response: `docs/api_stub.json`).
 
 ---
 
