@@ -13,7 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app as score_app
-from app import AgentsStateResponse, app
+from app import AgentEvent, AgentsStateResponse, app
 
 STUB_PATH = Path(__file__).resolve().parents[2] / "docs" / "api_stub.json"
 STUB = json.loads(STUB_PATH.read_text())
@@ -175,4 +175,7 @@ def test_chain_mode_scores_current_profiles_without_events(tmp_path, monkeypatch
     assert state.source == "chain" and state.block == 16
     assert [(a.name, a.score, a.required_collateral_pct) for a in state.agents] == [
         ("HonestAgent", 864, "20%"), ("SloppyAgent", 613, "40%"), ("Hirer", 877, "20%")]
-    assert all(a.recent_events == [] and a.score_delta == 0 for a in state.agents)
+    # Scores are live; the activity is the recorded local run, never used for a score.
+    assert all(a.score_delta == 0 for a in state.agents)
+    assert [a.recent_events for a in state.agents] == [
+        [AgentEvent(**e) for e in agent["recent_events"]] for agent in STUB["agents"]]

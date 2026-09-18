@@ -30,6 +30,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 MODELS_DIR = Path(__file__).parent / "models"
 DEPLOYMENTS_DIR = Path(__file__).resolve().parent.parent / "deployments"
+STUB_PATH = Path(__file__).resolve().parent.parent / "docs" / "api_stub.json"
 
 MIN_SCORE, MAX_SCORE = 0, 1000
 
@@ -626,6 +627,9 @@ def chain_agents_state(as_of: datetime | None = None) -> AgentsStateResponse:
     url, registry = deployment["rpcUrl"], deployment["AegisRegistry"]
     as_of = as_of or datetime.now(timezone.utc)
     scoring_model = _require_model()
+    # History is not replayed from this chain. The activity shown is the one recorded from a
+    # local run (docs/api_stub.json); the dashboard labels it so. Scores are never taken from it.
+    recorded = {agent["name"]: agent["recent_events"] for agent in json.loads(STUB_PATH.read_text())["agents"]}
 
     agents = []
     for name, entry in deployment.get("accounts", {}).items():
@@ -635,10 +639,10 @@ def chain_agents_state(as_of: datetime | None = None) -> AgentsStateResponse:
         request = EventsRequest(
             events=profile_events(profile, as_of), as_of=as_of, registered_at=entry.get("registeredAt"))
         result = score_agent(derive_features(request), scoring_model)
-        # No event replay, so no history to animate from: previous = current, no events.
+        # No event replay, so no score movement to show: previous = current.
         agents.append(PublishedAgent(
             address=entry["address"], name=name, score=result.score, previous_score=result.score,
-            top_factors=result.top_factors, recent_events=[]))
+            top_factors=result.top_factors, recent_events=recorded.get(name, [])))
 
     return AgentsStateResponse(
         source="chain",

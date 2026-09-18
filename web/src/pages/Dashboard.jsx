@@ -34,7 +34,9 @@ export default function Dashboard() {
             ))}
           </div>
         )}
-        {agents.length > 0 && <ActivityFeed agents={agents} />}
+        {agents.length > 0 && (
+          <ActivityFeed agents={agents} recorded={state?.source === "chain"} />
+        )}
       </main>
       <Footer />
     </>

@@ -7,8 +7,8 @@ Built for DSU DevHack 3.0 — Blockchain & Fintech.
 Today, when one AI agent hires another, it prepays 100% of the job value. Every transaction
 is a stranger meeting a stranger. AEGIS gives agents a portable credit score built from
 their on-chain job history, so a trustworthy agent can transact on **partial collateral**
-instead of locking up its entire balance — and if a job goes wrong, the dispute resolves
-automatically and both agents' scores move.
+instead of locking up its entire balance — and if a job goes wrong, the dispute settles by
+rule and the worker's score moves.
 
 We are not building a payment rail or a marketplace. We are building the trust layer that
 decides who gets to transact on credit.
@@ -136,7 +136,8 @@ response identical in shape to `docs/api_stub.json`.
 
 Set `AEGIS_STATE_CHAIN=base-sepolia` to serve `/agents/state` from that chain instead: one
 `getProfile` per agent in `deployments/base-sepolia.json`, scored by the service itself and
-cached for 5s. No event replay, so it shows no score deltas or activity (`source: "chain"`).
+cached for 5s. No event replay: cards show no score movement, and the activity feed is the recorded one from
+`docs/api_stub.json`, labelled on the dashboard as a local run (`source: "chain"`).
 Unset (the default), the local oracle path is used unchanged.
 
 `/score` returns the score, the band, the required collateral in basis points, the raw

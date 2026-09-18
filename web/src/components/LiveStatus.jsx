@@ -9,12 +9,20 @@ export default function LiveStatus({ state, error }) {
     );
   }
   const live = !error && state?.oracle_live;
+  // source "chain": the score service read the Registry itself; no oracle is involved.
+  const chain = state?.source === "chain";
   const label = live
-    ? "ORACLE LIVE"
+    ? chain
+      ? state.chain_id === 84532
+        ? "BASE SEPOLIA"
+        : "CHAIN READ"
+      : "ORACLE LIVE"
     : error
       ? "DISCONNECTED"
       : state
-        ? "ORACLE SILENT"
+        ? chain
+          ? "CHAIN UNREACHABLE"
+          : "ORACLE SILENT"
         : "CONNECTING";
   return (
     <div className="live-status">

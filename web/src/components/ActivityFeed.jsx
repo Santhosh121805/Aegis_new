@@ -4,7 +4,8 @@ import { chainStamp, direction, signed } from "../lib/format.js";
 const SHOWN = 12;
 
 // Every agent's recent events in one stream, newest first. Reasons are never truncated.
-export default function ActivityFeed({ agents }) {
+// `recorded`: the events are a recorded local run, not this chain's history (chain mode).
+export default function ActivityFeed({ agents, recorded = false }) {
   const events = agents
     .flatMap((agent) => agent.recent_events.map((event) => ({ ...event, agent: agent.name })))
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
@@ -13,7 +14,9 @@ export default function ActivityFeed({ agents }) {
   return (
     <section className="feed">
       <div className="section-head">
-        <MicroLabel>Live activity</MicroLabel>
+        <MicroLabel>
+          {recorded ? "Recent activity / recorded from a local run, not this chain" : "Live activity"}
+        </MicroLabel>
       </div>
       <div className="feed-rows">
         <div className="feed-row feed-header">
