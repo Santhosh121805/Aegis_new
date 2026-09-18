@@ -52,13 +52,13 @@ class History:
     def jobs_completed(self, agent: str) -> int:
         return sum(1 for outcome in self.outcomes(agent) if outcome.delivered)
 
-    def score_request(self, agent: str, as_of: datetime) -> dict:
+    def score_request(self, agent: str, as_of: datetime, registered_at: str | None = None) -> dict:
         """Body for POST /score/from-events.
 
         No counterparty is sent: OutcomeRecorded does not carry one, and msg.sender is always
         the escrow. The service then estimates diversity as jobs_completed * 0.6 (SPEC.md section 7).
         """
-        return {
+        request = {
             "events": [
                 {
                     "delivered": outcome.delivered,
@@ -70,3 +70,6 @@ class History:
             ],
             "as_of": as_of.astimezone(timezone.utc).isoformat(),
         }
+        if registered_at:
+            request["registered_at"] = registered_at
+        return request

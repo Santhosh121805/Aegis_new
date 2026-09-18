@@ -11,15 +11,17 @@ track record first, by calling recordOutcome from the stand-in escrow account.
 Job values vary between $230 and $880, averaging ~$500, so the live $500 demo job is an
 ordinary job for both agents rather than a spike the model rightly reads as risk. With that
 history every clean $500 job is worth about +7, and SloppyAgent's live lost dispute drops it
-to ~383: two tiers, 4000 -> 10000 bps.
+to ~382: two tiers, 4000 -> 10000 bps.
 
 The demo's hirer (demo_driver.py) is seeded too. Collateral is quoted on the HIRER's score
 (SPEC.md section 3), so a hirer with no history posts 100% and the demo's headline number --
 20% upfront instead of 100% -- never appears. Its clean record puts it in "excellent".
 
-History is spread over time with Anvil's clock (evm_setNextBlockTimestamp), because account
-age is one of the seven features. The chain clock therefore ends about two years ahead of
-the wall clock. Local Anvil only.
+Account age is one of the seven features. Rather than moving the chain clock, each agent gets
+a `registeredAt` in deployments/local.json, written before any outcome is recorded: its plan's
+span minus one day before now (729 / 379 / 729 days). The oracle sends it to the score service,
+which measures age from it. The outcomes themselves land at the chain's real time. Ages grow
+with real time, so run the live demo within a day of seeding for the numbers above.
 
 Idempotent: agents already holding exactly the seed history are left alone. Anything else
 (for example history from a previous live run) is refused -- restart anvil and redeploy.
@@ -35,7 +37,11 @@ import sys
 import time
 from dataclasses import dataclass
 
-from chain import account, connect, contract, load_deployment, owner_account, send
+import json
+import os
+from datetime import datetime, timezone
+
+from chain import DEPLOYMENTS_PATH, account, connect, contract, load_deployment, owner_account, send
 
 DAY = 86_400
 USDC = 10**6  # recordOutcome values are 6-decimal USDC, SPEC.md section 5
@@ -97,7 +103,8 @@ PLANS = [
 
 
 def schedule(start: int) -> list[tuple[int, SeedPlan, SeedOutcome]]:
-    """Every seed outcome with its block timestamp, all plans ending at the same moment."""
+    """Every seed outcome, interleaved in the order the plans' spans would place them. The
+    times only order the outcomes; they are not written to the chain."""
     end = start + max(plan.span_days for plan in PLANS) * DAY
     events = []
     for plan in PLANS:
@@ -131,18 +138,27 @@ def seed_state(registry, deployment) -> str:
 
 def record_history(w3, registry, deployment) -> None:
     seeder = account(deployment, "Seeder")
-    events = schedule(start=w3.eth.get_block("latest").timestamp + DAY)
+    events = schedule(start=0)
 
-    for timestamp, plan, outcome in events:
-        # The oracle mines its own blocks in between, so never ask for a time in the past.
-        timestamp = max(timestamp, w3.eth.get_block("latest").timestamp + 1)
-        w3.provider.make_request("evm_setNextBlockTimestamp", [timestamp])
+    for _, plan, outcome in events:
         send(w3, seeder, registry.functions.recordOutcome(
             deployment["accounts"][plan.role]["address"],
             outcome.delivered, outcome.disputed, outcome.value_usd * USDC,
         ))
         print(".", end="", flush=True)
     print(f" {len(events)} outcomes recorded")
+
+
+def write_registered_at(w3, deployment) -> None:
+    """Each agent's history start, span minus one day before the chain's current time."""
+    now = w3.eth.get_block("latest").timestamp
+    for plan in PLANS:
+        started = datetime.fromtimestamp(now - (plan.span_days - 1) * DAY, tz=timezone.utc)
+        deployment["accounts"][plan.role]["registeredAt"] = started.strftime("%Y-%m-%dT%H:%M:%SZ")
+    # The oracle re-reads this file on every rescore: replace it whole, never half-written.
+    temporary = DEPLOYMENTS_PATH.with_suffix(".tmp")
+    temporary.write_text(json.dumps(deployment, indent=2) + "\n")
+    os.replace(temporary, DEPLOYMENTS_PATH)
 
 
 def oracle_caught_up(registry, deployment) -> bool:
@@ -225,6 +241,7 @@ def main() -> int:
             print(f"Pointing escrow at the seeder ({seeder.address}) for the duration")
             send(w3, owner, registry.functions.setEscrow(seeder.address))
         try:
+            write_registered_at(w3, deployment)
             print("Recording seed history", end="", flush=True)
             record_history(w3, registry, deployment)
             caught_up = wait_for_oracle(registry, deployment)

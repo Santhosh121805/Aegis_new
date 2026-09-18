@@ -24,7 +24,7 @@ import requests
 from web3 import Web3
 from web3.logs import DISCARD
 
-from config import Config, ConfigError, load_config
+from config import Config, ConfigError, load_config, registered_at
 from history import History, Outcome
 from publisher import RECENT_EVENTS, Board
 from reasons import build_reason, describe_event
@@ -132,7 +132,8 @@ class Session:
     def _score(self, agent: str, as_of: datetime) -> dict:
         url = f"{self.config.score_url}/score/from-events"
         try:
-            response = requests.post(url, json=self.history.score_request(agent, as_of=as_of), timeout=10)
+            body = self.history.score_request(agent, as_of=as_of, registered_at=registered_at(agent))
+            response = requests.post(url, json=body, timeout=10)
             response.raise_for_status()
         except requests.RequestException as exc:
             raise ScoreServiceError(f"{url}: {exc}") from exc

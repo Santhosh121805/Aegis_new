@@ -330,6 +330,16 @@ class TestFromEvents:
         }
         assert derive_features(EventsRequest(**events)).account_age_days == 30
 
+    def test_registered_at_sets_account_age_instead_of_first_event(self):
+        events = {
+            "events": [
+                {"delivered": True, "disputed": False, "value_usd": 50.0, "timestamp": "2026-01-01T00:00:00Z"}
+            ],
+            "as_of": "2026-01-01T00:01:00Z",
+            "registered_at": "2024-01-02T00:01:00Z",
+        }
+        assert derive_features(EventsRequest(**events)).account_age_days == 730
+
     def test_empty_event_list_is_rejected(self):
         """An agent with no history is unknown, and the chain already charges it 100%."""
         assert client.post("/score/from-events", json={"events": []}).status_code == 422

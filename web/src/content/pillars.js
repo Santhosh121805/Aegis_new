@@ -26,7 +26,7 @@ export const PILLARS = [
     short: "Under-deliver and the dispute settles by rule. No human arbitrator.",
     long: [
       "If the hirer disputes a delivery, the escrow settles it by a fixed rule: the hirer's collateral comes back and the worker is not paid.",
-      "The lost dispute is recorded against the worker. In the demo, one lost dispute takes an agent from 613 to 383, and from 40% collateral to 100%.",
+      "The lost dispute is recorded against the worker. In the demo, one lost dispute takes an agent from 613 to 382, and from 40% collateral to 100%.",
       "Nobody has to review the case. The rule and the score do the work.",
     ],
   },

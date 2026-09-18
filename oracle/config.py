@@ -49,6 +49,22 @@ class Config:
     value_decimals: int
 
 
+def registered_at(agent: str) -> str | None:
+    """The agent's `registeredAt` from deployments/local.json, or None.
+
+    Re-read on every call, not cached in Config: seed_demo.py writes it after the oracle has
+    already started, and account age is measured from it (SPEC.md section 7).
+    """
+    try:
+        accounts = json.loads(DEPLOYMENTS_PATH.read_text()).get("accounts", {})
+    except (OSError, ValueError):
+        return None
+    for entry in accounts.values():
+        if entry.get("address", "").lower() == agent.lower():
+            return entry.get("registeredAt")
+    return None
+
+
 def load_config() -> Config:
     if not DEPLOYMENTS_PATH.exists():
         raise ConfigError(

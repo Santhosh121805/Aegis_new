@@ -97,7 +97,7 @@ function global:menu {
     Write-Host " AEGIS demo is READY. Type one of these and press Enter:" -ForegroundColor Green
     Write-Host "==============================================================" -ForegroundColor Green
     Write-Host "  honest      " -ForegroundColor Yellow -NoNewline; Write-Host "HonestAgent does a `$500 job   -> hirer posts 20%, score +7"
-    Write-Host "  sloppy      " -ForegroundColor Yellow -NoNewline; Write-Host "SloppyAgent cheats, disputed   -> 613 to 383, 40% to 100%"
+    Write-Host "  sloppy      " -ForegroundColor Yellow -NoNewline; Write-Host "SloppyAgent cheats, disputed   -> 613 to 382, 40% to 100%"
     Write-Host "  dashboard   " -ForegroundColor Yellow -NoNewline; Write-Host "open the live dashboard again"
     Write-Host "  reset       " -ForegroundColor Yellow -NoNewline; Write-Host "fresh chain + fresh seed (before each full run-through)"
     Write-Host "  menu        " -ForegroundColor Yellow -NoNewline; Write-Host "show this list again"

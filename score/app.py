@@ -276,6 +276,11 @@ class EventsRequest(BaseModel):
     as_of: datetime | None = Field(
         default=None, description="Defaults to now. Used to compute account age."
     )
+    registered_at: datetime | None = Field(
+        default=None,
+        description="Optional. When the agent's history starts; account age is measured from it. "
+        "Omitted, age runs from the earliest event.",
+    )
 
 
 class EventsScoreResponse(ScoreResponse):
@@ -461,6 +466,12 @@ def derive_features(request: EventsRequest) -> AgentFeatures:
         for event in events
     ]
 
+    started = min(timestamps)
+    if request.registered_at is not None:
+        started = request.registered_at
+        if started.tzinfo is None:
+            started = started.replace(tzinfo=timezone.utc)
+
     delivered_count = sum(1 for event in events if event.delivered)
     disputed_count = sum(1 for event in events if event.disputed)
 
@@ -474,7 +485,7 @@ def derive_features(request: EventsRequest) -> AgentFeatures:
         jobs_completed=delivered_count,
         dispute_rate=disputed_count / total,
         avg_job_value_usd=sum(event.value_usd for event in events) / total,
-        account_age_days=max(0, (as_of - min(timestamps)).days),
+        account_age_days=max(0, (as_of - started).days),
         on_time_payment_rate=clean_count / total,
         prior_defaults=total - delivered_count,
         counterparty_diversity=(
