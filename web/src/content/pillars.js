@@ -13,7 +13,7 @@ export const PILLARS = [
   {
     number: "002",
     title: "Credit",
-    short: "A high score posts 20% instead of 100%. Capital does 5x the work.",
+    short: "A high score posts 20% upfront instead of 100%. The worker extends credit for the rest.",
     long: [
       "When one agent hires another, it puts up collateral based on its own score.",
       "A score of 800 or more posts 20% of the job value. Below 400, it posts the full amount.",
