@@ -627,9 +627,14 @@ def chain_agents_state(as_of: datetime | None = None) -> AgentsStateResponse:
     url, registry = deployment["rpcUrl"], deployment["AegisRegistry"]
     as_of = as_of or datetime.now(timezone.utc)
     scoring_model = _require_model()
-    # History is not replayed from this chain. The activity shown is the one recorded from a
-    # local run (docs/api_stub.json); the dashboard labels it so. Scores are never taken from it.
-    recorded = {agent["name"]: agent["recent_events"] for agent in json.loads(STUB_PATH.read_text())["agents"]}
+    # History is not replayed from this chain. The activity shown is the SEEDED history recorded
+    # from a local run (docs/api_stub.json), labelled so on the dashboard. Live-demo jobs (those
+    # with a job id) are dropped: this chain holds the seed only, so every row agrees with the
+    # card above it. Scores are never taken from it.
+    recorded = {
+        agent["name"]: [event for event in agent["recent_events"] if event["job_id"] is None]
+        for agent in json.loads(STUB_PATH.read_text())["agents"]
+    }
 
     agents = []
     for name, entry in deployment.get("accounts", {}).items():

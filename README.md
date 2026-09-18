@@ -136,8 +136,8 @@ response identical in shape to `docs/api_stub.json`.
 
 Set `AEGIS_STATE_CHAIN=base-sepolia` to serve `/agents/state` from that chain instead: one
 `getProfile` per agent in `deployments/base-sepolia.json`, scored by the service itself and
-cached for 5s. No event replay: cards show no score movement, and the activity feed is the recorded one from
-`docs/api_stub.json`, labelled on the dashboard as a local run (`source: "chain"`).
+cached for 5s. No event replay: cards show no score movement, and the activity feed is the seeded history recorded in
+`docs/api_stub.json` (live-demo jobs dropped), labelled on the dashboard as a local run (`source: "chain"`).
 Unset (the default), the local oracle path is used unchanged.
 
 `/score` returns the score, the band, the required collateral in basis points, the raw

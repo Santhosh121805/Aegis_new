@@ -175,7 +175,9 @@ def test_chain_mode_scores_current_profiles_without_events(tmp_path, monkeypatch
     assert state.source == "chain" and state.block == 16
     assert [(a.name, a.score, a.required_collateral_pct) for a in state.agents] == [
         ("HonestAgent", 864, "20%"), ("SloppyAgent", 613, "40%"), ("Hirer", 877, "20%")]
-    # Scores are live; the activity is the recorded local run, never used for a score.
+    # Scores are live; the activity is the recorded seed history only, never used for a score.
     assert all(a.score_delta == 0 for a in state.agents)
     assert [a.recent_events for a in state.agents] == [
-        [AgentEvent(**e) for e in agent["recent_events"]] for agent in STUB["agents"]]
+        [AgentEvent(**e) for e in agent["recent_events"] if e["job_id"] is None] for agent in STUB["agents"]]
+    assert all(e.job_id is None for a in state.agents for e in a.recent_events)
+    assert "lost dispute" not in " ".join(e.reason for a in state.agents for e in a.recent_events)

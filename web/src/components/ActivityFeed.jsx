@@ -15,7 +15,7 @@ export default function ActivityFeed({ agents, recorded = false }) {
     <section className="feed">
       <div className="section-head">
         <MicroLabel>
-          {recorded ? "Recent activity / recorded from a local run, not this chain" : "Live activity"}
+          {recorded ? "Seeded history / recorded from a local run, not this chain" : "Live activity"}
         </MicroLabel>
       </div>
       <div className="feed-rows">
