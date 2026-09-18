@@ -138,6 +138,14 @@ interface IAegisRegistry {
 `register` is idempotent: calling it on an already-registered agent is a no-op and must not
 reset an existing profile.
 
+### Value units
+
+**Every job value is 6-decimal USDC base units.** `500000000` is a $500 job. This applies to
+`recordOutcome`'s `value`, `OutcomeRecorded.value`, `AgentProfile.totalValueHandled`, and
+every `value`, `collateralTaken` and `amountToWorker` in the escrow interface (section 6).
+Not 18 decimals. The oracle divides by `10**6` before scoring; a value in 18 decimals would
+reach the model as a $500,000,000,000,000 job.
+
 ---
 
 ## 6. Escrow interface
@@ -160,6 +168,17 @@ interface IAegisEscrow {
 }
 ```
 
+### Stand-in escrow (local development)
+
+Until the real escrow deploys, `contracts/script/deploy_local.py` sets `escrow` to Anvil
+account 9, a plain EOA, so `recordOutcome` can be called by hand with `cast` and by
+`agents/seed_demo.py`.
+
+**When the real escrow deploys, `setEscrow` MUST point at it.** Otherwise `recordOutcome`
+reverts with `NotEscrow`: the escrow's `settle` either reverts with it, or, if the escrow
+wraps the call, silently records nothing. Either way no `OutcomeRecorded` is emitted, the
+oracle never wakes, and it looks like an oracle bug when it is a wiring bug.
+
 ---
 
 ## 7. Score service contract
@@ -177,6 +196,14 @@ The off-chain scoring model consumes seven features per agent.
 | `counterparty_diversity` | `int`   | `>= 0`, distinct agents transacted with  |
 
 The model predicts `default_probability`. **Low risk means a high score.**
+
+**`counterparty_diversity` is stubbed at `1` in the oracle path.** `OutcomeRecorded` carries
+no counterparty, and `msg.sender` is always the escrow, so the score service's
+`derive_features` assumes a single counterparty. Being constant it shifts every live agent by
+the same amount and does not reorder them. It has a second effect worth knowing: in the
+training data diversity rises with job count, so the model credits experience mostly through
+diversity (coefficient `-0.94`) rather than `jobs_completed` (`-0.17`). With diversity pinned,
+one more clean job is worth about +1 point.
 
 The raw probability is deliberately *not* used as the score. At a ~15% base default rate it
 pushes 79% of agents above 800, so nearly everyone qualifies for the cheapest collateral
@@ -250,3 +277,16 @@ Base Sepolia. Solidity `^0.8.20`. OpenZeppelin for `Ownable` and `IERC20`.
 
 Escrow logic, agent scripts, dashboard, and x402 integration are deliberately not built.
 The escrow interface exists so the registry can be wired against it later.
+
+---
+
+## 10. Roadmap
+
+**Cold-start handling for thin-file agents.** Rates computed from a handful of jobs are
+extreme: one lost dispute on a two-job history is a 50% dispute rate and takes the score from
+509 to 0. The standard credit-scoring fix is to shrink each rate toward the population mean
+in proportion to how little history backs it (empirical-Bayes smoothing, e.g.
+`(disputes + k * population_rate) / (jobs + k)`), so a thin file reads as "insufficient
+history" rather than as a confident extreme. Not built: the demo seeds its agents with prior
+history instead (`agents/seed_demo.py`). Doing it properly means re-running
+`check_distribution.py` and re-tuning the seed.
