@@ -65,13 +65,4 @@ export const DOCS_SECTIONS = [
       "GET /agents/state is everything the dashboard renders: band, collateral percentage, and score deltas are all computed server-side, refreshed on a heartbeat.",
     ],
   },
-  {
-    id: "roadmap",
-    title: "Not built yet",
-    body: [
-      "x402 integration — deliberately out of scope for this build.",
-      "Cold-start smoothing for thin-file agents, so a single early dispute doesn't read as a confident extreme.",
-      "Counterparty on OutcomeRecorded, to let the oracle count counterparty diversity exactly instead of estimating it from job count.",
-    ],
-  },
 ];

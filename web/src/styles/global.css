@@ -1641,29 +1641,52 @@ dd {
   border-top: 1px solid var(--border);
 }
 
-.footer-inner {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: calc(var(--u) * 3);
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: calc(var(--u) * 6) calc(var(--u) * 3);
+.marquee {
+  overflow: hidden;
+  padding: calc(var(--u) * 5) 0;
+  /* Fade the wordmark in and out at the edges. */
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
 }
 
-.footer-col {
+.marquee-track {
   display: flex;
-  flex-direction: column;
-  gap: var(--u);
-  font: 500 12px/1.5 var(--mono);
+  width: max-content;
+  animation: marquee-ltr 40s linear infinite;
+}
+
+.marquee-half {
+  display: flex;
+}
+
+.marquee-word {
+  padding-right: calc(var(--u) * 6);
+  font: 600 clamp(56px, 10vw, 140px) / 1 var(--serif);
+  letter-spacing: 0.04em;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--border-strong);
+  user-select: none;
+}
+
+.marquee-word:nth-child(even) {
   color: var(--text-3);
+  -webkit-text-stroke: 0;
+  opacity: 0.35;
 }
 
-.footer-col .micro {
-  margin-bottom: var(--u);
+/* Left to right: start one half to the left, slide to rest. The halves are identical. */
+@keyframes marquee-ltr {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
-.footer-col a:hover {
-  color: var(--text);
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
 }
 
 /* ---- responsive ------------------------------------------------------------------------ */
@@ -1752,10 +1775,6 @@ dd {
   }
   .feed-header span:nth-child(2) {
     display: none;
-  }
-  .footer-inner {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
   }
   .muted-pill {
     display: none;
