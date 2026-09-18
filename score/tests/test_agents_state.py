@@ -136,3 +136,43 @@ def test_unknown_fields_from_the_oracle_are_rejected():
     snapshot["agents"][0]["band"] = "excellent"  # derived here, never accepted from outside
 
     assert client.put("/internal/agents/state", json=snapshot).status_code == 422
+
+
+def test_chain_mode_scores_current_profiles_without_events(tmp_path, monkeypatch):
+    """AEGIS_STATE_CHAIN: one getProfile per agent, scored here. The seeded counters and ages
+    (729 / 379 / 729 days) must land exactly where the oracle path lands them."""
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime(2026, 9, 19, 12, tzinfo=timezone.utc)
+    profiles = {  # address -> (score, completed, disputed, defaults, value in USDC units)
+        "0x" + "1" * 40: (0, 20, 0, 0, 10_500_000_000),
+        "0x" + "2" * 40: (0, 15, 1, 0, 7_850_000_000),
+        "0x" + "3" * 40: (0, 22, 0, 0, 11_570_000_000),
+    }
+    ages = {"HonestAgent": 729, "SloppyAgent": 379, "Hirer": 729}
+    addresses = dict(zip(ages, profiles))
+    (tmp_path / "fake.json").write_text(json.dumps({
+        "chainId": 84532, "rpcUrl": "http://rpc.invalid", "AegisRegistry": "0x" + "9" * 40,
+        "accounts": {
+            name: {"address": addresses[name],
+                   "registeredAt": (now - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")}
+            for name, days in ages.items()
+        },
+    }))
+
+    def fake_rpc(url, method, params):
+        if method == "eth_blockNumber":
+            return "0x10"
+        agent = "0x" + params[0]["data"][-40:]
+        words = [0, *profiles[agent], 1]
+        return "0x" + "".join(f"{w:064x}" for w in words)
+
+    monkeypatch.setattr(score_app, "STATE_CHAIN", "fake")
+    monkeypatch.setattr(score_app, "DEPLOYMENTS_DIR", tmp_path)
+    monkeypatch.setattr(score_app, "_rpc", fake_rpc)
+
+    state = score_app.chain_agents_state(as_of=now + timedelta(hours=1))
+    assert state.source == "chain" and state.block == 16
+    assert [(a.name, a.score, a.required_collateral_pct) for a in state.agents] == [
+        ("HonestAgent", 864, "20%"), ("SloppyAgent", 613, "40%"), ("Hirer", 877, "20%")]
+    assert all(a.recent_events == [] and a.score_delta == 0 for a in state.agents)

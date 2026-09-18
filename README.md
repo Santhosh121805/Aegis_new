@@ -134,6 +134,11 @@ heartbeat. It makes no chain reads and needs no database; the dashboard must nev
 Band, collateral percentage and deltas are all computed server-side. A test keeps the live
 response identical in shape to `docs/api_stub.json`.
 
+Set `AEGIS_STATE_CHAIN=base-sepolia` to serve `/agents/state` from that chain instead: one
+`getProfile` per agent in `deployments/base-sepolia.json`, scored by the service itself and
+cached for 5s. No event replay, so it shows no score deltas or activity (`source: "chain"`).
+Unset (the default), the local oracle path is used unchanged.
+
 `/score` returns the score, the band, the required collateral in basis points, the raw
 default probability, and `top_factors` — the three features that moved the score most,
 each with a signed point impact and a plain-English explanation.

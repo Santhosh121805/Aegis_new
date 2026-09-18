@@ -13,7 +13,10 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
+import threading
 import time
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Literal
@@ -26,6 +29,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
 MODELS_DIR = Path(__file__).parent / "models"
+DEPLOYMENTS_DIR = Path(__file__).resolve().parent.parent / "deployments"
 
 MIN_SCORE, MAX_SCORE = 0, 1000
 
@@ -354,7 +358,7 @@ class AgentState(BaseModel):
 class AgentsStateResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    source: Literal["oracle", "stub"]
+    source: Literal["oracle", "stub", "chain"]
     notice: str | None = Field(..., description="Human-readable warning to show, or null.")
     oracle_live: bool = Field(..., description="False if the oracle has stopped reporting.")
     updated_at: str | None = Field(..., description="Wall-clock time of the oracle's last report.")
@@ -568,6 +572,115 @@ def agents_state() -> AgentsStateResponse:
     )
 
 
+# ---------------------------------------------------------------------------
+# Chain-read state. Set AEGIS_STATE_CHAIN to a deployments/<name>.json (e.g. "base-sepolia") and
+# /agents/state reads the current profiles from that chain's Registry -- one getProfile per
+# agent, no event replay, no get_logs -- and scores them here. Unset, the oracle push is used.
+# ---------------------------------------------------------------------------
+
+STATE_CHAIN = os.environ.get("AEGIS_STATE_CHAIN") or None
+CHAIN_CACHE_SECONDS = 5.0
+GET_PROFILE_SELECTOR = "0x0f53a470"  # getProfile(address)
+USDC_UNITS = 10**6  # SPEC.md section 5
+
+
+def _rpc(url: str, method: str, params: list):
+    body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).encode()
+    # Public RPCs (sepolia.base.org) answer urllib's default User-Agent with 403.
+    headers = {"Content-Type": "application/json", "User-Agent": "aegis-score-service"}
+    request = urllib.request.Request(url, data=body, headers=headers)
+    with urllib.request.urlopen(request, timeout=10) as reply:
+        payload = json.loads(reply.read())
+    if "error" in payload:
+        raise RuntimeError(payload["error"])
+    return payload["result"]
+
+
+def read_profile(url: str, registry: str, agent: str) -> dict:
+    """AgentProfile is all static fields, so the return data is seven 32-byte words in order."""
+    data = GET_PROFILE_SELECTOR + agent.lower().removeprefix("0x").rjust(64, "0")
+    words = _rpc(url, "eth_call", [{"to": registry, "data": data}, "latest"]).removeprefix("0x")
+    w = [int(words[i * 64:(i + 1) * 64], 16) for i in range(7)]
+    return {"score": w[1], "completed": w[2], "disputed": w[3], "defaults": w[4], "value": w[5], "exists": bool(w[6])}
+
+
+def profile_events(profile: dict, as_of: datetime) -> list[JobEvent]:
+    """An event list equivalent to the profile's counters. Only counts and the average value
+    reach the features, so this scores the same as the full history would.
+
+    Counters do not say whether a disputed job was won or lost; disputes are attributed to
+    defaults first. Exact for what AegisEscrow records (a dispute is always a default) and for
+    the seed (its one disputed job was delivered, with no defaults).
+    """
+    total = profile["completed"] + profile["defaults"]
+    lost = min(profile["disputed"], profile["defaults"])
+    won = profile["disputed"] - lost
+    value = max(profile["value"] / USDC_UNITS / total, 1 / USDC_UNITS)
+    kinds = ([(True, False)] * (profile["completed"] - won) + [(True, True)] * won
+             + [(False, True)] * lost + [(False, False)] * (profile["defaults"] - lost))
+    return [JobEvent(delivered=d, disputed=x, value_usd=value, timestamp=as_of) for d, x in kinds]
+
+
+def chain_agents_state(as_of: datetime | None = None) -> AgentsStateResponse:
+    deployment = json.loads((DEPLOYMENTS_DIR / f"{STATE_CHAIN}.json").read_text())
+    url, registry = deployment["rpcUrl"], deployment["AegisRegistry"]
+    as_of = as_of or datetime.now(timezone.utc)
+    scoring_model = _require_model()
+
+    agents = []
+    for name, entry in deployment.get("accounts", {}).items():
+        profile = read_profile(url, registry, entry["address"])
+        if not profile["exists"] or profile["completed"] + profile["defaults"] == 0:
+            continue
+        request = EventsRequest(
+            events=profile_events(profile, as_of), as_of=as_of, registered_at=entry.get("registeredAt"))
+        result = score_agent(derive_features(request), scoring_model)
+        # No event replay, so no history to animate from: previous = current, no events.
+        agents.append(PublishedAgent(
+            address=entry["address"], name=name, score=result.score, previous_score=result.score,
+            top_factors=result.top_factors, recent_events=[]))
+
+    return AgentsStateResponse(
+        source="chain",
+        notice=None,
+        oracle_live=True,
+        updated_at=as_of.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        chain_id=deployment["chainId"],
+        block=int(_rpc(url, "eth_blockNumber", []), 16),
+        agents=[agent_state(agent) for agent in agents],
+    )
+
+
+class _ChainCache:
+    response: AgentsStateResponse | None = None
+    fetched: float = float("-inf")
+    lock = threading.Lock()
+
+
+CHAIN_CACHE = _ChainCache()
+
+
+def cached_chain_state() -> AgentsStateResponse:
+    """At most one chain read per CHAIN_CACHE_SECONDS, failures included, so polling dashboards
+    never hammer the RPC. A failed read keeps serving the last good state, flagged."""
+    with CHAIN_CACHE.lock:
+        if time.monotonic() - CHAIN_CACHE.fetched < CHAIN_CACHE_SECONDS and CHAIN_CACHE.response:
+            return CHAIN_CACHE.response
+        CHAIN_CACHE.fetched = time.monotonic()
+        try:
+            CHAIN_CACHE.response = chain_agents_state()
+        except Exception as exc:  # noqa: BLE001 -- any RPC failure degrades, never 500s
+            notice = f"Could not read {STATE_CHAIN}: {exc}"
+            if CHAIN_CACHE.response is None:
+                CHAIN_CACHE.response = AgentsStateResponse(
+                    source="chain", notice=notice, oracle_live=False, updated_at=None,
+                    chain_id=None, block=None, agents=[])
+            else:
+                CHAIN_CACHE.response = CHAIN_CACHE.response.model_copy(
+                    update={"notice": notice + ". Showing the last good read.", "oracle_live": False})
+        return CHAIN_CACHE.response
+
+
 app = FastAPI(
     title="AEGIS score service",
     description=(
@@ -616,9 +729,11 @@ def score_from_events(request: EventsRequest) -> EventsScoreResponse:
 def get_agents_state() -> AgentsStateResponse:
     """Everything the dashboard renders, for every agent the oracle knows about.
 
-    Served from the oracle's last pushed snapshot. No chain reads, no database. Poll it every
-    1-2s; the shape is fixed by docs/api_stub.json.
+    Served from the oracle's last pushed snapshot, or, with AEGIS_STATE_CHAIN set, from that
+    chain's Registry directly. Poll it every 1-2s; the shape is fixed by docs/api_stub.json.
     """
+    if STATE_CHAIN:
+        return cached_chain_state()
     return agents_state()
 
 
