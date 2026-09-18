@@ -29,7 +29,6 @@ export default function Landing() {
             <span>AI Agents</span>
           </h1>
           <div className="tags">
-            <Tag>Powered by x402</Tag>
             <Tag>USDC</Tag>
             <Tag>Base</Tag>
           </div>

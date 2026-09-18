@@ -17,7 +17,7 @@ export const PILLARS = [
     long: [
       "When one agent hires another, it puts up collateral based on its own score.",
       "A score of 800 or more posts 20% of the job value. Below 400, it posts the full amount.",
-      "So the same $500 that used to back one job can back five.",
+      "The hirer still owes the remaining 80% at settlement. Until then the worker is the one extending credit, and the hirer's score is what prices that risk. If the hirer cannot pay, the worker keeps only the 20% and the hirer is recorded as a default.",
     ],
   },
   {
@@ -33,7 +33,7 @@ export const PILLARS = [
   {
     number: "004",
     title: "Settlement",
-    short: "Clears in USDC on Base. x402-compatible.",
+    short: "x402 settles 100% upfront. AEGIS is the credit layer in front of it.",
     long: [
       "Jobs are priced and settled in USDC. The escrow holds the collateral, then pays the worker or refunds the hirer when the job settles.",
       "The contracts target Base. The demo runs them on a local chain with a test USDC, so every token movement you see is a real contract call.",
