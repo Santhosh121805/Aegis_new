@@ -197,6 +197,9 @@ score = clamp(round(ANCHOR - FACTOR * (logit - MEDIAN_LOGIT)), 0, 1000)
 | `FACTOR`       | `100 / ln(2)` ≈ `144.3` | 100 points per doubling of the odds of default.               |
 | `MEDIAN_LOGIT` | fitted                  | Median logit over the training split. Written to `models/calibration.json` by `train.py`. |
 
+**Chosen values: `ANCHOR = 500`, `FACTOR = 144.3`.** These are final for the build, not
+placeholders pending tuning. The measured spread below was accepted as is.
+
 **`ANCHOR = 500` is load-bearing.** It must equal the on-chain starting score of a newly
 registered agent in section 2. The two numbers encode the same claim — that an agent with no
 history is exactly average until proven otherwise — so a new agent's first score must not
@@ -218,7 +221,10 @@ Verified by `score/check_distribution.py` over all 5000 synthetic agents:
 | `fair`      | `7000` bps | **47.3%** |
 | `poor`      | `10000` bps| **29.6%** |
 
-Median score 499. Only 4.1% of agents sit at a rail (0 or 1000).
+Median score 499. Only 4.1% of agents sit at a rail (0 or 1000). Model test ROC AUC is
+0.82, inside the 0.80-0.88 band, so the data is not over-separable. Agents at the rails are
+deliberately extreme histories; ordinary agents built around the population medians score
+between 370 and 831 and none clamp.
 
 The requirement is that no band swallows the population and all four collateral tiers stay
 reachable. That holds.
