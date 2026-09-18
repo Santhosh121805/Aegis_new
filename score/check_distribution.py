@@ -67,6 +67,84 @@ BAD_AGENT = AgentFeatures(
     counterparty_diversity=1,
 )
 
+# Ordinary agents built around the population medians (jobs 7, disputes 0.016, value $60,
+# age 159d, on-time 0.87, defaults 0, counterparties 4). The clean/bad pair above are
+# deliberate extremes; these are the ones that must NOT pile up at 0 or 1000.
+MID_RANGE_AGENTS: list[tuple[str, AgentFeatures]] = [
+    (
+        "population median",
+        AgentFeatures(
+            jobs_completed=7,
+            dispute_rate=0.016,
+            avg_job_value_usd=60.0,
+            account_age_days=159,
+            on_time_payment_rate=0.87,
+            prior_defaults=0,
+            counterparty_diversity=4,
+        ),
+    ),
+    (
+        "a bit below average",
+        AgentFeatures(
+            jobs_completed=4,
+            dispute_rate=0.10,
+            avg_job_value_usd=80.0,
+            account_age_days=90,
+            on_time_payment_rate=0.80,
+            prior_defaults=0,
+            counterparty_diversity=3,
+        ),
+    ),
+    (
+        "a bit above average",
+        AgentFeatures(
+            jobs_completed=20,
+            dispute_rate=0.01,
+            avg_job_value_usd=110.0,
+            account_age_days=280,
+            on_time_payment_rate=0.92,
+            prior_defaults=0,
+            counterparty_diversity=12,
+        ),
+    ),
+    (
+        "new but clean",
+        AgentFeatures(
+            jobs_completed=3,
+            dispute_rate=0.0,
+            avg_job_value_usd=45.0,
+            account_age_days=30,
+            on_time_payment_rate=0.95,
+            prior_defaults=0,
+            counterparty_diversity=3,
+        ),
+    ),
+    (
+        "experienced, one dispute",
+        AgentFeatures(
+            jobs_completed=40,
+            dispute_rate=0.025,
+            avg_job_value_usd=150.0,
+            account_age_days=420,
+            on_time_payment_rate=0.90,
+            prior_defaults=0,
+            counterparty_diversity=22,
+        ),
+    ),
+    (
+        "one past default",
+        AgentFeatures(
+            jobs_completed=12,
+            dispute_rate=0.08,
+            avg_job_value_usd=95.0,
+            account_age_days=200,
+            on_time_payment_rate=0.85,
+            prior_defaults=1,
+            counterparty_diversity=7,
+        ),
+    ),
+]
+
 
 def band_of(score: int) -> str:
     return score_band(score)
@@ -170,6 +248,25 @@ def print_archetypes(model) -> tuple[int, int]:
     return results["clean"].score, results["bad"].score
 
 
+def print_mid_range(model) -> list[int]:
+    """Ordinary agents must land across the middle, not at the rails."""
+    print("Mid-range agents (these are the ones that must not clamp)")
+    print("-" * 64)
+
+    scores = []
+    for label, features in MID_RANGE_AGENTS:
+        result = score_agent(features, model)
+        scores.append(result.score)
+        rail = "  <-- CLAMPED" if result.score in (0, 1000) else ""
+        print(
+            f"  {label:<26} score={result.score:<5} {result.band:<10} "
+            f"{result.required_collateral_bps:>5} bps{rail}"
+        )
+
+    print()
+    return scores
+
+
 def suggest_calibration(logits: np.ndarray, model) -> None:
     """Work out what it would take to hit the target spread. Suggests only."""
     calibration = model.calibration
@@ -253,6 +350,7 @@ def main() -> int:
     print_collateral_distribution(scores)
     print_score_summary(scores)
     clean_score, bad_score = print_archetypes(model)
+    mid_scores = print_mid_range(model)
 
     print("Verdict")
     print("-" * 64)
@@ -276,6 +374,21 @@ def main() -> int:
         failures.append(f"clean agent only scored {clean_score}, expected a high score")
     if bad_score >= 400:
         failures.append(f"bad agent scored {bad_score}, expected a low score")
+
+    clamped_mid = [score for score in mid_scores if score in (0, 1000)]
+    if clamped_mid:
+        failures.append(
+            f"{len(clamped_mid)} of {len(mid_scores)} mid-range agents clamped at a rail; "
+            "ordinary agents should land in the middle of the range"
+        )
+    else:
+        print(
+            f"  ok    no mid-range agent clamped "
+            f"(span {min(mid_scores)}-{max(mid_scores)})"
+        )
+
+    rail_share = float(((scores == 0) | (scores == 1000)).mean())
+    print(f"  note  {rail_share * 100:.1f}% of the population sits at a rail (0 or 1000)")
 
     dominant = max(shares, key=shares.get)
     if shares[dominant] > DOMINANCE_LIMIT:
