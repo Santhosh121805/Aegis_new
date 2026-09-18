@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AEGIS Live</title>
+<!--
+  AEGIS live dashboard. Polls GET /agents/state on the score service every second and renders
+  it as-is: every band, percentage and delta comes from the API, nothing is computed here.
+  Never talks to the chain.
+
+  Open this file in a browser while the score service (terminal 2) and oracle (terminal 3)
+  are running. Different API host: index.html?api=http://host:8000
+-->
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --hairline: #e1e0d9;
+    --baseline: #c3c2b7;
+    --border: rgba(11, 11, 11, 0.10);
+    --up: #006300;          /* delta: score went up (good) */
+    --down: #d03b3b;        /* delta: score went down (bad) */
+    --helps: #2a78d6;       /* factor raises the score (diverging pole) */
+    --hurts: #e34948;       /* factor lowers the score (diverging pole) */
+    /* Band fills. Status palette plus the accent for "good"; always shown with the band label. */
+    --band-excellent: #0ca30c;
+    --band-good: #2a78d6;
+    --band-fair: #fab219;
+    --band-poor: #d03b3b;
+    --flash: rgba(42, 120, 214, 0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+      --hairline: #2c2c2a; --baseline: #383835; --border: rgba(255, 255, 255, 0.10);
+      --up: #0ca30c; --helps: #3987e5; --hurts: #e66767; --band-good: #3987e5;
+      --flash: rgba(57, 135, 229, 0.16);
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #ffffff; --ink-2: #c3c2b7; --muted: #898781;
+    --hairline: #2c2c2a; --baseline: #383835; --border: rgba(255, 255, 255, 0.10);
+    --up: #0ca30c; --helps: #3987e5; --hurts: #e66767; --band-good: #3987e5;
+    --flash: rgba(57, 135, 229, 0.16);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 1320px; margin: 0 auto; padding: 24px clamp(16px, 3vw, 32px) 48px; }
+
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 24px; margin-bottom: 20px; }
+  h1 { font-size: 22px; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+  h1 span { color: var(--muted); font-weight: 500; }
+  .meta { display: flex; flex-wrap: wrap; gap: 6px 18px; color: var(--ink-2); font-size: 13px; }
+  .live { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .live.on .dot { background: var(--band-excellent); box-shadow: 0 0 0 0 rgba(12, 163, 12, 0.5); animation: pulse 2s infinite; }
+  .live.off .dot { background: var(--band-poor); }
+  @keyframes pulse { 70% { box-shadow: 0 0 0 7px rgba(12, 163, 12, 0); } 100% { box-shadow: 0 0 0 0 rgba(12, 163, 12, 0); } }
+
+  .banner {
+    border: 1px solid var(--border); border-left: 3px solid var(--band-fair);
+    background: var(--surface); padding: 10px 14px; border-radius: 8px;
+    margin-bottom: 16px; color: var(--ink-2); font-size: 14px;
+  }
+  .banner.error { border-left-color: var(--band-poor); }
+  .banner code { font-size: 12.5px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 16px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 16px; min-width: 0;
+    transition: box-shadow 0.4s;
+  }
+  .card.changed { box-shadow: 0 0 0 3px var(--flash); }
+
+  .top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .top > div { min-width: 0; }
+  .name { font-size: 17px; font-weight: 650; }
+  .addr { color: var(--muted); font-size: 12px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 8px;
+    border: 1px solid var(--border); border-radius: 999px; font-size: 13px; font-weight: 600;
+    white-space: nowrap; text-transform: capitalize;
+  }
+  .pill i { width: 10px; height: 10px; border-radius: 3px; background: var(--band); }
+
+  .score-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .score { font-size: clamp(44px, 12vw, 56px); font-weight: 650; line-height: 1; letter-spacing: -0.02em; }
+  .delta { font-size: 15px; font-weight: 600; }
+  .delta.up { color: var(--up); }
+  .delta.down { color: var(--down); }
+  .delta.flat { color: var(--muted); }
+  .from { color: var(--muted); font-size: 13px; }
+
+  /* Meter: fill carries the band; the track is a light step of the same hue. */
+  .meter { position: relative; height: 10px; border-radius: 5px; background: color-mix(in srgb, var(--band) 16%, var(--surface)); }
+  .meter .fill {
+    position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: var(--band);
+    transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.6s;
+  }
+  .meter .tick { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--surface); }
+  .scale { position: relative; height: 16px; font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .scale span { position: absolute; transform: translateX(-50%); }
+  .scale span:first-child { transform: none; }
+  .scale span:last-child { transform: translateX(-100%); }
+
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tile { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+  .tile .label { color: var(--ink-2); font-size: 12.5px; }
+  .tile .value { font-size: clamp(22px, 6.4vw, 30px); font-weight: 650; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tile .sub { color: var(--muted); font-size: 12.5px; }
+  .tile .sub b { font-weight: 600; }
+  .tile .sub .worse { color: var(--down); }
+  .tile .sub .better { color: var(--up); }
+
+  h3 { font-size: 12.5px; font-weight: 600; color: var(--ink-2); margin: 0 0 8px; }
+
+  .factor { display: grid; grid-template-columns: minmax(0, 116px) minmax(0, 1fr) 44px; align-items: center; gap: 8px; font-size: 13px; padding: 3px 0; cursor: default; }
+  .factor .fname { color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .factor .track { position: relative; height: 12px; }
+  .factor .track::before { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--baseline); }
+  .factor .bar { position: absolute; top: 0; bottom: 0; transition: width 0.8s, left 0.8s; }
+  .factor .bar.helps { background: var(--helps); border-radius: 0 4px 4px 0; }
+  .factor .bar.hurts { background: var(--hurts); border-radius: 4px 0 0 4px; }
+  .factor .pts { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .factor:hover .fname { color: var(--ink); }
+
+  .events { list-style: none; margin: 0; padding: 0; }
+  .events li {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 12px; padding: 8px 6px;
+    border-top: 1px solid var(--hairline); border-radius: 6px;
+  }
+  .events li.new { animation: arrive 2.4s ease-out; }
+  @keyframes arrive { 0% { background: var(--flash); } 100% { background: transparent; } }
+  .events .what { font-weight: 600; font-size: 13.5px; }
+  .events .ed { font-weight: 650; font-variant-numeric: tabular-nums; text-align: right; }
+  .events .ed.up { color: var(--up); }
+  .events .ed.down { color: var(--down); }
+  .events .detail { grid-column: 1 / -1; color: var(--muted); font-size: 12.5px; }
+  .events .reason { grid-column: 1 / -1; color: var(--ink-2); font-size: 12.5px; }
+  .empty { color: var(--muted); font-size: 13px; }
+
+  #tip {
+    position: fixed; pointer-events: none; z-index: 10; max-width: 260px;
+    background: var(--ink); color: var(--surface); padding: 7px 10px; border-radius: 7px;
+    font-size: 12.5px; line-height: 1.35; opacity: 0; transition: opacity 0.12s;
+  }
+  #tip.show { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>AEGIS <span>live credit</span></h1>
+    <div class="meta">
+      <span class="live" id="live"><span class="dot"></span><span id="live-text">connecting…</span></span>
+      <span id="block"></span>
+      <span id="updated"></span>
+    </div>
+  </header>
+  <div id="banner" class="banner" hidden></div>
+  <div id="grid" class="grid"></div>
+</div>
+<div id="tip" role="tooltip"></div>
+
+<script>
+(() => {
+  const API = new URLSearchParams(location.search).get("api") || "http://127.0.0.1:8000";
+  const URL_STATE = API.replace(/\/$/, "") + "/agents/state";
+  const POLL_MS = 1000;
+  const ANIMATE_MS = 1200;
+
+  const FEATURE_NAMES = {
+    jobs_completed: "Jobs completed",
+    dispute_rate: "Dispute rate",
+    avg_job_value_usd: "Avg job value",
+    account_age_days: "Account age",
+    on_time_payment_rate: "On-time rate",
+    prior_defaults: "Prior defaults",
+    counterparty_diversity: "Counterparties",
+  };
+  const EVENT_NAMES = {
+    job_completed: "Job completed",
+    dispute_won: "Dispute won",
+    dispute_lost: "Dispute lost",
+    payment_default: "Payment default",
+  };
+  const BAND_ICON = { excellent: "✓", good: "●", fair: "▲", poor: "✕" };
+
+  const $ = (id) => document.getElementById(id);
+  const grid = $("grid");
+  const tip = $("tip");
+  const cards = new Map();   // address -> { el, shown, eventKey }
+
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const money = (v) => "$" + Number(v).toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const signed = (n) => (n > 0 ? "▲ +" + n : n < 0 ? "▼ −" + Math.abs(n) : "±0");
+  const dir = (n) => (n > 0 ? "up" : n < 0 ? "down" : "flat");
+  const time = (iso) => (iso ? iso.slice(11, 19) : "");
+
+  // ---- tooltip (factor bars) ---------------------------------------------------------
+  document.addEventListener("mousemove", (e) => {
+    const t = e.target.closest("[data-tip]");
+    if (!t) { tip.classList.remove("show"); return; }
+    tip.innerHTML = t.dataset.tip;
+    tip.classList.add("show");
+    const x = Math.min(e.clientX + 14, window.innerWidth - tip.offsetWidth - 8);
+    tip.style.left = x + "px";
+    tip.style.top = (e.clientY + 16) + "px";
+  });
+
+  // ---- score count-up ----------------------------------------------------------------
+  function animateScore(card, from, to) {
+    const el = card.el.querySelector(".score");
+    const start = performance.now();
+    cancelAnimationFrame(card.raf);
+    const step = (now) => {
+      const t = Math.min(1, (now - start) / ANIMATE_MS);
+      const eased = 1 - Math.pow(1 - t, 3);
+      el.textContent = Math.round(from + (to - from) * eased);
+      if (t < 1) card.raf = requestAnimationFrame(step);
+    };
+    card.raf = requestAnimationFrame(step);
+    // Animation frames pause in background tabs; always land on the real number.
+    clearTimeout(card.settle);
+    card.settle = setTimeout(() => { cancelAnimationFrame(card.raf); el.textContent = to; }, ANIMATE_MS + 100);
+  }
+
+  // ---- card ---------------------------------------------------------------------------
+  function createCard(agent) {
+    const el = document.createElement("article");
+    el.className = "card";
+    el.innerHTML = `
+      <div class="top">
+        <div><div class="name"></div><div class="addr"></div></div>
+        <span class="pill"><i></i><span class="band-icon"></span><span class="band"></span></span>
+      </div>
+      <div>
+        <div class="score-row">
+          <span class="score">–</span>
+          <span class="delta"></span>
+          <span class="from"></span>
+        </div>
+        <div style="margin-top:12px">
+          <div class="meter"><div class="fill"></div>
+            <span class="tick" style="left:40%"></span><span class="tick" style="left:60%"></span><span class="tick" style="left:80%"></span>
+          </div>
+          <div class="scale"><span style="left:0">0</span><span style="left:40%">400</span><span style="left:60%">600</span><span style="left:80%">800</span><span style="left:100%">1000</span></div>
+        </div>
+      </div>
+      <div class="tiles">
+        <div class="tile">
+          <div class="label">Collateral upfront</div>
+          <div class="value coll"></div>
+          <div class="sub coll-sub"></div>
+        </div>
+        <div class="tile">
+          <div class="label">Credit band</div>
+          <div class="value band-big" style="text-transform:capitalize"></div>
+          <div class="sub band-sub"></div>
+        </div>
+      </div>
+      <div><h3>Why this score</h3><div class="factors"></div></div>
+      <div><h3>Recent activity</h3><ul class="events"></ul></div>`;
+    grid.appendChild(el);
+    return { el, shown: null, eventKey: null, raf: 0 };
+  }
+
+  function updateCard(card, a) {
+    const el = card.el;
+    el.style.setProperty("--band", `var(--band-${a.band})`);
+    el.querySelector(".name").textContent = a.name;
+    el.querySelector(".addr").textContent = a.address.slice(0, 6) + "…" + a.address.slice(-4);
+    el.querySelector(".band").textContent = a.band;
+    el.querySelector(".band-icon").textContent = BAND_ICON[a.band] || "";
+
+    const scoreChanged = card.shown !== a.score;
+    if (scoreChanged) {
+      // First paint animates from the previous score, so the latest move is visible on load.
+      animateScore(card, card.shown === null ? a.previous_score : card.shown, a.score);
+      if (card.shown !== null) {
+        el.classList.add("changed");
+        setTimeout(() => el.classList.remove("changed"), 2400);
+      }
+      card.shown = a.score;
+    }
+
+    const delta = el.querySelector(".delta");
+    delta.className = "delta " + dir(a.score_delta);
+    delta.textContent = signed(a.score_delta);
+    el.querySelector(".from").textContent = "from " + a.previous_score;
+    el.querySelector(".fill").style.width = (a.score / 10) + "%";
+
+    el.querySelector(".coll").textContent = a.required_collateral_pct;
+    const collChanged = a.previous_required_collateral_bps !== a.required_collateral_bps;
+    const worse = a.required_collateral_bps > a.previous_required_collateral_bps;
+    el.querySelector(".coll-sub").innerHTML = collChanged
+      ? `<b class="${worse ? "worse" : "better"}">${worse ? "▲" : "▼"} from ${esc(a.previous_required_collateral_pct)}</b>`
+      : "unchanged";
+
+    el.querySelector(".band-big").textContent = a.band;
+    el.querySelector(".band-sub").innerHTML = a.previous_band !== a.band
+      ? `was <b>${esc(a.previous_band)}</b>`
+      : "unchanged";
+
+    // Factors: diverging bars from a centre line; blue raises the score, red lowers it.
+    const maxAbs = Math.max(100, ...a.top_factors.map((f) => Math.abs(f.impact)));
+    el.querySelector(".factors").innerHTML = a.top_factors.map((f) => {
+      const w = (Math.abs(f.impact) / maxAbs) * 50;
+      const helps = f.impact >= 0;
+      const style = helps ? `left:50%;width:${w}%` : `left:${50 - w}%;width:${w}%`;
+      const name = FEATURE_NAMES[f.feature] || f.feature;
+      const tipText = `<b>${esc(name)}</b>: ${esc(f.value)}<br>${esc(f.explanation)}<br>${f.impact > 0 ? "+" : ""}${f.impact} points`;
+      return `<div class="factor" data-tip="${esc(tipText)}">
+        <span class="fname">${esc(name)}</span>
+        <span class="track"><span class="bar ${helps ? "helps" : "hurts"}" style="${style}"></span></span>
+        <span class="pts">${f.impact > 0 ? "+" : ""}${f.impact}</span></div>`;
+    }).join("");
+
+    // Events: rebuild only when the newest one changes, and flash the new arrival.
+    const newest = a.recent_events[0];
+    const key = newest ? newest.timestamp + "|" + newest.reason : "";
+    if (key !== card.eventKey) {
+      const firstPaint = card.eventKey === null;
+      card.eventKey = key;
+      const list = el.querySelector(".events");
+      list.innerHTML = a.recent_events.length ? a.recent_events.slice(0, 5).map((e, i) => `
+        <li class="${i === 0 && !firstPaint ? "new" : ""}">
+          <span class="what">${esc(EVENT_NAMES[e.type] || e.type)}</span>
+          <span class="ed ${dir(e.delta)}">${signed(e.delta)}</span>
+          <span class="detail">${e.job_id == null ? "seeded history" : "job #" + e.job_id} · ${money(e.value_usd)} · ${time(e.timestamp)}</span>
+          <span class="reason">${esc(e.reason)}</span>
+        </li>`).join("") : `<li class="empty">No activity yet</li>`;
+    }
+  }
+
+  // ---- polling -------------------------------------------------------------------------
+  function banner(text, isError) {
+    const b = $("banner");
+    b.hidden = !text;
+    b.className = "banner" + (isError ? " error" : "");
+    b.innerHTML = text || "";
+  }
+
+  function render(state) {
+    const live = $("live");
+    live.className = "live " + (state.oracle_live ? "on" : "off");
+    $("live-text").textContent = state.source === "stub" ? "Stub data" : state.oracle_live ? "Oracle live" : "Oracle silent";
+    $("block").textContent = state.block != null ? "block " + state.block : "";
+    $("updated").textContent = state.updated_at ? "updated " + time(state.updated_at) : "";
+    banner(state.notice ? esc(state.notice) : "", false);
+
+    const seen = new Set();
+    for (const agent of state.agents) {
+      seen.add(agent.address);
+      if (!cards.has(agent.address)) cards.set(agent.address, createCard(agent));
+      updateCard(cards.get(agent.address), agent);
+    }
+    for (const [address, card] of cards) {   // a fresh chain can drop agents
+      if (!seen.has(address)) { card.el.remove(); cards.delete(address); }
+    }
+  }
+
+  async function poll() {
+    try {
+      const response = await fetch(URL_STATE, { cache: "no-store" });
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      render(await response.json());
+    } catch (err) {
+      const live = $("live");
+      live.className = "live off";
+      $("live-text").textContent = "Disconnected";
+      banner(`Can't reach the score service at <code>${esc(URL_STATE)}</code>. Is terminal 2 running? Retrying…`, true);
+    } finally {
+      setTimeout(poll, POLL_MS);
+    }
+  }
+
+  poll();
+})();
+</script>
+</body>
+</html>
