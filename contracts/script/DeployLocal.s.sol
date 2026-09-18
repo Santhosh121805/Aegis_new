@@ -12,15 +12,17 @@ import {AegisRegistry} from "../src/AegisRegistry.sol";
 ///         Nothing downstream hardcodes an address; everything reads that file.
 /// @dev Uses Anvil's default mnemonic, so the accounts are the ones `anvil` prints:
 ///        account 0  owner + scoreOracle (the oracle service signs with this key)
-///        account 1  stand-in escrow, so `recordOutcome` can be driven by `cast` until
-///                   AegisEscrow exists. Replace with the real escrow address then.
+///        account 1  HonestAgent      account 2  SloppyAgent      account 3  demo hirer
+///        account 9  stand-in escrow and seeder, so `recordOutcome` can be driven by `cast`
+///                   and agents/seed_demo.py until AegisEscrow exists. When the real escrow
+///                   deploys, `setEscrow` MUST point at it (SPEC.md section 6).
 contract DeployLocal is Script {
     string internal constant ANVIL_MNEMONIC = "test test test test test test test test test test test junk";
 
     function run() external returns (AegisRegistry registry) {
         uint256 ownerKey = vm.deriveKey(ANVIL_MNEMONIC, 0);
         address owner = vm.addr(ownerKey);
-        address escrow = vm.addr(vm.deriveKey(ANVIL_MNEMONIC, 1));
+        address escrow = vm.addr(vm.deriveKey(ANVIL_MNEMONIC, 9));
 
         vm.startBroadcast(ownerKey);
         registry = new AegisRegistry(owner);

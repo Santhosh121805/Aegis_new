@@ -134,12 +134,22 @@ copy oracle\.env.example oracle\.env
 oracle\.venv\Scripts\python oracle\watcher.py   # terminal 3
 ```
 
-Until `AegisEscrow` exists, the local deploy sets `escrow` to Anvil account 1, so an outcome
+Until `AegisEscrow` exists, the local deploy sets `escrow` to Anvil account 9, so an outcome
 can be recorded by hand (value is in 6-decimal units, so `500000000` is $500):
 
 ```bash
-cast send <AegisRegistry> 'recordOutcome(address,bool,bool,uint256)' <agent> false true 500000000   --private-key 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+cast send <AegisRegistry> 'recordOutcome(address,bool,bool,uint256)' <agent> false true 500000000   --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
 ```
+
+### Seeding the demo agents
+
+```bash
+agents\.venv\Scripts\python agents\seed_demo.py
+```
+
+Gives HonestAgent (account 1) and SloppyAgent (account 2) a prior track record so the demo
+does not start from a cold file: ~813 / excellent and ~618 / good. Idempotent; after a live
+run, restart anvil and redeploy to seed again.
 
 ---
 
@@ -161,6 +171,6 @@ test suite asserts the mapping matches the contract's table exactly.
 
 - Escrow logic (interface only)
 - Agent scripts
-- Real escrow (local deploy uses Anvil account 1 as a stand-in)
+- Real escrow (local deploy uses Anvil account 9 as a stand-in)
 - Dashboard
 - x402 integration

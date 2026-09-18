@@ -18,17 +18,33 @@ from pathlib import Path
 
 RPC_URL = "http://127.0.0.1:8545"
 CHAIN_ID = 31337
+ANVIL_MNEMONIC = "test test test test test test test test test test test junk"
+
+# Demo roles on Anvil's default accounts. Keys are derived from the public Anvil mnemonic by
+# index, so no secret is ever written to disk. Account 0 is owner + oracle.
+ACCOUNTS = {"HonestAgent": 1, "SloppyAgent": 2, "Hirer": 3, "Seeder": 9}
 
 CONTRACTS_DIR = Path(__file__).resolve().parent.parent
 BROADCAST = CONTRACTS_DIR / "broadcast" / "DeployLocal.s.sol" / str(CHAIN_ID) / "run-latest.json"
 OUTPUT = CONTRACTS_DIR.parent / "deployments" / "local.json"
 
 
-def main() -> int:
+def _foundry(tool: str) -> str | None:
     # foundryup's default install dir is often on the shell's PATH but not the OS one.
-    forge = shutil.which("forge") or shutil.which("forge", path=str(Path.home() / ".foundry" / "bin"))
-    if forge is None:
-        print("forge not found on PATH. Install Foundry: https://getfoundry.sh", file=sys.stderr)
+    return shutil.which(tool) or shutil.which(tool, path=str(Path.home() / ".foundry" / "bin"))
+
+
+def _anvil_address(cast: str, index: int) -> str:
+    return subprocess.run(
+        [cast, "wallet", "address", "--mnemonic", ANVIL_MNEMONIC, "--mnemonic-index", str(index)],
+        capture_output=True, text=True, check=True,
+    ).stdout.strip()
+
+
+def main() -> int:
+    forge, cast = _foundry("forge"), _foundry("cast")
+    if forge is None or cast is None:
+        print("forge/cast not found on PATH. Install Foundry: https://getfoundry.sh", file=sys.stderr)
         return 1
 
     result = subprocess.run(
@@ -56,6 +72,10 @@ def main() -> int:
         "owner": owner,
         "scoreOracle": calls["setScoreOracle(address)"],
         "escrow": calls["setEscrow(address)"],
+        "accounts": {
+            name: {"address": _anvil_address(cast, index), "anvilIndex": index}
+            for name, index in ACCOUNTS.items()
+        },
     }
 
     OUTPUT.parent.mkdir(exist_ok=True)
