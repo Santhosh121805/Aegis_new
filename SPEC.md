@@ -196,22 +196,28 @@ The off-chain scoring model consumes seven features per agent.
 | `account_age_days`       | `int`   | `>= 0`                                   |
 | `on_time_payment_rate`   | `float` | `0.0 - 1.0`, skewed high                 |
 | `prior_defaults`         | `int`   | `>= 0`, mostly 0                         |
-| `counterparty_diversity` | `int`   | `>= 0`, distinct agents transacted with  |
+| `counterparty_diversity` | `float` | `>= 0`, distinct agents transacted with; estimated in the oracle path (below) |
 
 The model predicts `default_probability`. **Low risk means a high score.**
 
 **`counterparty_diversity` is an ESTIMATE in the oracle path.** `OutcomeRecorded` carries no
 counterparty, and `msg.sender` is always the escrow, so when events arrive without counterparty
 labels the score service's `derive_features` estimates it as
-`max(1, round(jobs_completed * 0.6))`. `0.6` sits near the training data's own ratio
+`max(1.0, jobs_completed * 0.6)`, a float, unrounded. `0.6` sits near the training data's own ratio
 (`generate_data.py` draws diversity as `jobs * Beta(4, 3)`, mean 0.57). Events that do carry
-a `counterparty` are counted exactly instead.
+a `counterparty` are counted exactly instead; a count is a whole number, which the float
+field carries unchanged. The field is off-chain only: nothing on-chain reads it.
+
+It is a float, not an `int`, because rounding broke the thing the estimate exists for. A
+rounded estimate steps up on only some jobs (21 jobs -> 13, 22 -> 13, 23 -> 14), so
+consecutive clean jobs alternated between about +11 and +1 points, and a second demo run
+showed a clean job worth nothing. Unrounded, every clean $500 job on the seeded HonestAgent is
+worth the same +7 (verified over six consecutive jobs: 864 -> 871 -> 878 -> ... -> 906).
 
 It is not pinned at `1` on purpose. In the training data diversity rises with job count, so
 the model credits experience mostly through diversity (coefficient `-0.94`) rather than
 `jobs_completed` (`-0.17`). Pinned, one more clean job was worth about +1 point, and a clean
-job larger than the agent's average scored *negative*. With the estimate, a clean $500 job on
-the seeded HonestAgent is worth about +11. Replace the estimate with real counts once
+job larger than the agent's average scored *negative*. Replace the estimate with real counts once
 `OutcomeRecorded` carries a counterparty (section 10).
 
 The raw probability is deliberately *not* used as the score. At a ~15% base default rate it

@@ -33,7 +33,8 @@ MIN_SCORE, MAX_SCORE = 0, 1000
 # without counterparty labels, diversity is estimated as this fraction of completed jobs. 0.6
 # sits near the training data's own ratio (generate_data.py draws it from Beta(4, 3), mean
 # 0.57). Pinning it at 1 instead froze the model's strongest experience signal and made a clean
-# job worth ~+1 point, or less than zero on a larger job. Replace with real counts once
+# job worth ~+1 point, or less than zero on a larger job. Unrounded, so every clean job moves
+# it by the same amount. Replace with real counts once
 # OutcomeRecorded carries a counterparty (SPEC.md section 10).
 DIVERSITY_PER_JOB_ESTIMATE = 0.6
 
@@ -221,8 +222,10 @@ class AgentFeatures(BaseModel):
         ..., ge=0.0, le=1.0, description="Fraction of obligations met on time."
     )
     prior_defaults: int = Field(..., ge=0, description="Jobs this agent failed to deliver.")
-    counterparty_diversity: int = Field(
-        ..., ge=0, description="Distinct agents transacted with."
+    # A float because the oracle path supplies an ESTIMATE (jobs * 0.6, unrounded); real
+    # counterparty counts are whole numbers and pass through unchanged. SPEC.md section 7.
+    counterparty_diversity: float = Field(
+        ..., ge=0, description="Distinct agents transacted with (estimated when unlabelled)."
     )
 
     model_config = {
@@ -431,9 +434,13 @@ def score_agent(features: AgentFeatures, scoring_model: ScoringModel) -> ScoreRe
     )
 
 
-def estimate_counterparty_diversity(jobs_completed: int) -> int:
-    """ESTIMATE used only when no event carries a counterparty. See DIVERSITY_PER_JOB_ESTIMATE."""
-    return max(1, round(jobs_completed * DIVERSITY_PER_JOB_ESTIMATE))
+def estimate_counterparty_diversity(jobs_completed: int) -> float:
+    """ESTIMATE used only when no event carries a counterparty. See DIVERSITY_PER_JOB_ESTIMATE.
+
+    Deliberately not rounded. Rounding made the estimate step up on only some jobs (21 -> 13,
+    22 -> 13, 23 -> 14), so consecutive clean jobs alternated between about +11 and +1 points.
+    """
+    return max(1.0, jobs_completed * DIVERSITY_PER_JOB_ESTIMATE)
 
 
 def derive_features(request: EventsRequest) -> AgentFeatures:

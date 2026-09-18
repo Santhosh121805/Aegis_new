@@ -10,7 +10,7 @@ track record first, by calling recordOutcome from the stand-in escrow account.
 
 Job values vary between $230 and $880, averaging ~$500, so the live $500 demo job is an
 ordinary job for both agents rather than a spike the model rightly reads as risk. With that
-history a clean $500 job is worth about +11, and SloppyAgent's live lost dispute drops it
+history every clean $500 job is worth about +7, and SloppyAgent's live lost dispute drops it
 to ~383: two tiers, 4000 -> 10000 bps.
 
 The demo's hirer (demo_driver.py) is seeded too. Collateral is quoted on the HIRER's score

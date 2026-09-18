@@ -297,12 +297,12 @@ class TestFromEvents:
 
     def test_missing_counterparties_are_estimated_from_completed_jobs(self):
         assert derive_features(self._unlabelled(1)).counterparty_diversity == 1
-        assert derive_features(self._unlabelled(10)).counterparty_diversity == 6
-        assert derive_features(self._unlabelled(20)).counterparty_diversity == 12
+        assert derive_features(self._unlabelled(10)).counterparty_diversity == pytest.approx(6.0)
+        assert derive_features(self._unlabelled(21)).counterparty_diversity == pytest.approx(12.6)
 
     def test_estimated_diversity_ignores_defaults_and_never_drops_below_one(self):
         assert derive_features(self._unlabelled(0, defaults=3)).counterparty_diversity == 1
-        assert derive_features(self._unlabelled(10, defaults=5)).counterparty_diversity == 6
+        assert derive_features(self._unlabelled(10, defaults=5)).counterparty_diversity == pytest.approx(6.0)
 
     def test_one_more_clean_job_raises_the_score_without_counterparties(self):
         def score(jobs: int) -> int:
@@ -310,6 +310,16 @@ class TestFromEvents:
                                json=self._unlabelled(jobs).model_dump(mode="json")).json()["score"]
 
         assert score(21) > score(20)
+
+    def test_consecutive_clean_jobs_each_raise_the_score_by_a_similar_amount(self):
+        """No alternating: rounding the estimate once made this +11, +1, +11, +1."""
+        def score(jobs: int) -> int:
+            return client.post("/score/from-events",
+                               json=self._unlabelled(jobs).model_dump(mode="json")).json()["score"]
+
+        gains = [score(n + 1) - score(n) for n in range(20, 26)]
+        assert all(gain > 0 for gain in gains), gains
+        assert max(gains) - min(gains) <= 2, gains
 
     def test_naive_timestamps_are_accepted(self):
         events = {
