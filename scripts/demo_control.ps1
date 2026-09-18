@@ -73,7 +73,7 @@ function global:sloppy {
 }
 
 function global:dashboard {
-    Start-Process (Join-Path $global:AegisRoot "dashboard\index.html")
+    Start-Process "http://localhost:5173/dashboard"
 }
 
 function global:reset {
@@ -106,6 +106,7 @@ function global:menu {
 
 try {
     Initialize-AegisWorld
+    Wait-AegisPort 5173 "the website"
     dashboard
     menu
 } catch {

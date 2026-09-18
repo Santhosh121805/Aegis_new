@@ -47,7 +47,7 @@ aegis/
   contracts/       Foundry project — AegisRegistry, AegisEscrow, MockUSDC; StubEscrow fallback
   score/           Python — synthetic data, logistic regression, FastAPI scoring service
   agents/          Demo agents, seeding script, stand-in hirer driver
-  dashboard/       (not built yet)
+  web/             Product site: landing, /dashboard (live), /how-it-works. Vite + React.
 ```
 
 ---
@@ -183,6 +183,21 @@ where the real escrow plugs in.
 
 ---
 
+## Website
+
+```bash
+cd web
+npm install
+npm run build && npm run preview   # http://localhost:5173  (/, /dashboard, /how-it-works)
+```
+
+`/dashboard` polls `GET /agents/state` on the score service every 1.5s and renders it as-is.
+`/dashboard?stub=1` renders `docs/api_stub.json` instead, for offline previews; `?api=` points
+it at another score service. The whole demo, website included, starts with
+`powershell -ExecutionPolicy Bypass -File scripts\demo.ps1`.
+
+---
+
 ## The one invariant that matters
 
 The collateral step table is duplicated in two places:
@@ -199,5 +214,4 @@ test suite asserts the mapping matches the contract's table exactly.
 
 ## Not built yet
 
-- Dashboard (its read API, `GET /agents/state`, is built)
 - x402 integration
