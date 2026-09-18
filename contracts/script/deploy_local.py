@@ -28,6 +28,14 @@ CONTRACTS_DIR = Path(__file__).resolve().parent.parent
 BROADCAST = CONTRACTS_DIR / "broadcast" / "DeployLocal.s.sol" / str(CHAIN_ID) / "run-latest.json"
 OUTPUT = CONTRACTS_DIR.parent / "deployments" / "local.json"
 
+# Contracts whose ABI gets embedded in deployments/local.json for Person B to read.
+ABI_CONTRACTS = ["AegisRegistry", "AegisEscrow", "MockUSDC"]
+
+
+def _abi(contract_name: str) -> list:
+    path = CONTRACTS_DIR / "out" / f"{contract_name}.sol" / f"{contract_name}.json"
+    return json.loads(path.read_text())["abi"]
+
 
 def _foundry(tool: str) -> str | None:
     # foundryup's default install dir is often on the shell's PATH but not the OS one.
@@ -69,10 +77,9 @@ def main() -> int:
         "chainId": CHAIN_ID,
         "rpcUrl": RPC_URL,
         "AegisRegistry": created["AegisRegistry"],
-        # STAND-IN. When the real escrow deploys, record its address here instead and set
-        # escrowIsStub to false. Agents talk to it through the IAegisEscrow ABI only.
-        "AegisEscrow": created["StubEscrow"],
-        "escrowIsStub": True,
+        "AegisEscrow": created["AegisEscrow"],
+        "escrowIsStub": False,
+        "MockUSDC": created["MockUSDC"],
         "owner": owner,
         "scoreOracle": calls["setScoreOracle(address)"],
         "escrow": calls["setEscrow(address)"],
@@ -80,12 +87,15 @@ def main() -> int:
             name: {"address": _anvil_address(cast, index), "anvilIndex": index}
             for name, index in ACCOUNTS.items()
         },
+        "abis": {name: _abi(name) for name in ABI_CONTRACTS},
     }
 
     OUTPUT.parent.mkdir(exist_ok=True)
     OUTPUT.write_text(json.dumps(deployment, indent=2) + "\n")
+
+    summary = {k: v for k, v in deployment.items() if k != "abis"}
     print(f"\nWrote {OUTPUT}")
-    print(json.dumps(deployment, indent=2))
+    print(json.dumps(summary, indent=2))
     return 0
 
 
