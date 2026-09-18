@@ -194,15 +194,43 @@ score = clamp(round(ANCHOR - FACTOR * (logit - MEDIAN_LOGIT)), 0, 1000)
 | Constant       | Value                   | Meaning                                                      |
 | -------------- | ----------------------- | ------------------------------------------------------------ |
 | `ANCHOR`       | `500`                   | The median agent scores 500, matching the on-chain starting score. |
-| `FACTOR`       | `100 / ln(2)` ≈ `144.27` | 100 points per doubling of the odds of default.               |
+| `FACTOR`       | `100 / ln(2)` ≈ `144.3` | 100 points per doubling of the odds of default.               |
 | `MEDIAN_LOGIT` | fitted                  | Median logit over the training split. Written to `models/calibration.json` by `train.py`. |
+
+**`ANCHOR = 500` is load-bearing.** It must equal the on-chain starting score of a newly
+registered agent in section 2. The two numbers encode the same claim — that an agent with no
+history is exactly average until proven otherwise — so a new agent's first score must not
+jump the moment the oracle first writes to it. Changing one requires changing the other.
 
 Because the mapping is linear in log-odds, a feature's effect in points is exactly
 `-FACTOR * (coefficient * standardized_value)`. Point impacts therefore stay stable across
 the whole range instead of collapsing at the extremes, which is what makes
 "this agent lost 40 points from one disputed job" a true statement rather than a slogan.
 
-Resulting population spread: roughly 5% `excellent`, 19% `good`, 47% `fair`, 29% `poor`.
+### Measured population spread
+
+Verified by `score/check_distribution.py` over all 5000 synthetic agents:
+
+| Band        | Collateral | Share     |
+| ----------- | ---------- | --------- |
+| `excellent` | `2000` bps | **4.6%**  |
+| `good`      | `4000` bps | **18.5%** |
+| `fair`      | `7000` bps | **47.3%** |
+| `poor`      | `10000` bps| **29.6%** |
+
+Median score 499. Only 4.1% of agents sit at a rail (0 or 1000).
+
+The requirement is that no band swallows the population and all four collateral tiers stay
+reachable. That holds.
+
+A flatter 15/35/35/15 spread was considered and **rejected**. `ANCHOR` pins the median agent's
+score, so exactly 50% of agents score at or above `ANCHOR` by construction. Putting 50% of
+agents at or above 600 therefore forces `ANCHOR = 600` — no value of `FACTOR` can achieve it
+alone. That would break the load-bearing tie to the starting score above. The alternative,
+raising `FACTOR` to ~295 while holding `ANCHOR = 500`, roughly doubles the points swing per
+job and makes per-job score changes read as arbitrary rather than calibrated. Neither cost is
+worth paying for a distribution that is never rendered: the demo shows two agents, not the
+population.
 
 ---
 
