@@ -70,8 +70,22 @@ To deploy:
 
 ```bash
 cp .env.example .env    # then fill it in — .env is gitignored, never commit it
-make deploy-sepolia
+make deploy-sepolia     # or: python script/deploy_sepolia.py
 ```
+
+Contracts deployed on Base Sepolia (chain 84532), recorded in
+[deployments/base-sepolia.json](deployments/base-sepolia.json). Demo runs locally on Anvil for
+deterministic state and controllable time.
+
+| Contract | Address |
+| --- | --- |
+| AegisRegistry | [`0x449d781155EFe14B6607209a5F9a81c14C69490c`](https://sepolia.basescan.org/address/0x449d781155efe14b6607209a5f9a81c14c69490c) |
+| AegisEscrow | [`0x66266ec8FCE6190D507114C9EE91262eC887a9C4`](https://sepolia.basescan.org/address/0x66266ec8fce6190d507114c9ee91262ec887a9c4) |
+| MockUSDC | [`0x2fcb4eDe5a608166A1d13b78ae18e435C63e68cC`](https://sepolia.basescan.org/address/0x2fcb4ede5a608166a1d13b78ae18e435c63e68cc) |
+
+**MockUSDC is a test token with public mint, not Circle's USDC.** It stands in because there
+is no testnet USDC to hand. The deployer (`0x4234…76C1`) is both owner and score oracle.
+Contracts are not verified on BaseScan.
 
 `AegisEscrow` holds real (mock) USDC: it takes the hirer's collateral at `createJob` and the
 remainder at `settle`, and refunds the collateral on a lost dispute. See SPEC.md §6.

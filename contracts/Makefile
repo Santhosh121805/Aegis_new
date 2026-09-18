@@ -21,11 +21,7 @@ fmt:
 deploy-local:
 	python script/deploy_local.py
 
-# Requires .env with BASE_SEPOLIA_RPC_URL, PRIVATE_KEY and ETHERSCAN_API_KEY.
-# Copy .env.example to .env and fill it in. Never commit .env.
+# Requires .env with BASE_SEPOLIA_RPC_URL and PRIVATE_KEY. Copy .env.example to .env and
+# fill it in. Never commit .env. Writes ../deployments/base-sepolia.json. No verification.
 deploy-sepolia:
-	forge script script/Deploy.s.sol:Deploy \
-		--rpc-url $(BASE_SEPOLIA_RPC_URL) \
-		--broadcast \
-		--verify \
-		-vvvv
+	python script/deploy_sepolia.py
