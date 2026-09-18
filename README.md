@@ -44,7 +44,7 @@ decides who gets to transact on credit.
 ```
 aegis/
   SPEC.md          Frozen type definitions. Source of truth.
-  contracts/       Foundry project — AegisRegistry (implemented), IAegisEscrow (interface only)
+  contracts/       Foundry project — AegisRegistry, AegisEscrow, MockUSDC; StubEscrow fallback
   score/           Python — synthetic data, logistic regression, FastAPI scoring service
   agents/          Demo agents, seeding script, stand-in hirer driver
   dashboard/       (not built yet)
@@ -72,7 +72,8 @@ cp .env.example .env    # then fill it in — .env is gitignored, never commit i
 make deploy-sepolia
 ```
 
-`AegisEscrow` is **interface only**. No escrow logic is implemented yet.
+`AegisEscrow` holds real (mock) USDC: it takes the hirer's collateral at `createJob` and the
+remainder at `settle`, and refunds the collateral on a lost dispute. See SPEC.md §6.
 
 ### Access control
 
@@ -141,8 +142,17 @@ copy oracle\.env.example oracle\.env
 oracle\.venv\Scripts\python oracle\watcher.py   # terminal 3
 ```
 
-Until `AegisEscrow` exists, the local deploy wires in `StubEscrow`, a clearly labelled
-stand-in (no tokens move, disputes always go against the worker).
+The local deploy wires in the real `AegisEscrow` with `MockUSDC` (6 decimals, $1M minted to
+accounts 1-3), so jobs move real test tokens. `StubEscrow` stays as a fallback (no tokens,
+disputes always against the worker). Switch with:
+
+```bash
+agents\.venv\Scripts\python agents\select_escrow.py          # which one is active, and is the Registry wired to it
+agents\.venv\Scripts\python agents\select_escrow.py --stub   # fall back to StubEscrow
+agents\.venv\Scripts\python agents\select_escrow.py --real   # back to AegisEscrow
+```
+
+Restart the oracle and both agents after switching.
 
 ### Seeding the demo agents
 
@@ -165,6 +175,9 @@ agents\.venv\Scripts\python agents\demo_driver.py --worker SloppyAgent   # one j
 
 `demo_driver.py` is a stand-in hirer: it posts a job, disputes any delivery that comes back
 in under 2s (SloppyAgent) and accepts the rest (HonestAgent), settles, and prints the rescore.
+With the real escrow it approves the full job value (collateral is taken at `createJob`, the
+rest at `settle`), prints the hirer's mUSDC balance at each step, and exits non-zero if the
+hirer is ever recorded as a default -- the escrow's silent failure when under-approved.
 Agents talk to the escrow only through the `IAegisEscrow` ABI; see `agents/escrow.py` for
 where the real escrow plugs in.
 
@@ -186,7 +199,5 @@ test suite asserts the mapping matches the contract's table exactly.
 
 ## Not built yet
 
-- Escrow logic (interface only)
-- Real escrow (local deploy uses `StubEscrow` as a stand-in)
-- Dashboard
+- Dashboard (its read API, `GET /agents/state`, is built)
 - x402 integration
