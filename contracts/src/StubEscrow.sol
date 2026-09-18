@@ -5,9 +5,8 @@ import {IAegisEscrow, JobState} from "./interfaces/IAegisEscrow.sol";
 import {IAegisRegistry} from "./interfaces/IAegisRegistry.sol";
 
 /// @title StubEscrow -- STAND-IN, NOT THE REAL ESCROW
-/// @notice Minimal IAegisEscrow so the demo agents can run end to end before Teammate A's
-///         AegisEscrow exists. Local Anvil only. Delete once the real escrow deploys and
-///         `setEscrow` points at it (SPEC.md section 6).
+/// @notice Minimal IAegisEscrow kept as a fallback for the real AegisEscrow.
+///         Local Anvil only. Switch with agents/select_escrow.py (SPEC.md section 6).
 /// @dev What it deliberately does NOT do:
 ///        - move any tokens. `collateralTaken` is computed and emitted, never collected.
 ///        - arbitrate. A disputed job always settles against the worker.

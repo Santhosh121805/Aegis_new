@@ -56,7 +56,7 @@ class History:
         """Body for POST /score/from-events.
 
         No counterparty is sent: OutcomeRecorded does not carry one, and msg.sender is always
-        the escrow. The service then assumes a single counterparty rather than inventing one.
+        the escrow. The service then estimates diversity as jobs_completed * 0.6 (SPEC.md section 7).
         """
         return {
             "events": [

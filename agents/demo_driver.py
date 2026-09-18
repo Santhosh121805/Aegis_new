@@ -1,5 +1,5 @@
-"""STAND-IN HIRER. Drives one job end to end so the agents can be exercised before the real
-escrow and a real hiring agent exist.
+"""STAND-IN HIRER. Drives one job end to end. It is a script, not a real hiring
+agent.
 
     post job -> wait for delivery -> judge it -> accept or dispute -> settle -> show rescore
 

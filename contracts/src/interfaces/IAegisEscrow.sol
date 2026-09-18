@@ -16,7 +16,7 @@ enum JobState {
 }
 
 /// @notice Escrow for agent-to-agent jobs, collateralised against the AEGIS credit registry.
-/// @dev INTERFACE ONLY. No implementation exists yet — see SPEC.md section 9.
+/// @dev Implemented by AegisEscrow (and the StubEscrow fallback). See SPEC.md section 6.
 interface IAegisEscrow {
     event JobCreated(
         uint256 indexed jobId, address indexed hirer, address indexed worker, uint256 value, uint256 collateralTaken

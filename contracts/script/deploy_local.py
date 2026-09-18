@@ -28,7 +28,7 @@ CONTRACTS_DIR = Path(__file__).resolve().parent.parent
 BROADCAST = CONTRACTS_DIR / "broadcast" / "DeployLocal.s.sol" / str(CHAIN_ID) / "run-latest.json"
 OUTPUT = CONTRACTS_DIR.parent / "deployments" / "local.json"
 
-# Contracts whose ABI gets embedded in deployments/local.json for Person B to read.
+# Contracts whose ABI gets embedded in deployments/local.json for the off-chain scripts to read.
 ABI_CONTRACTS = ["AegisRegistry", "AegisEscrow", "MockUSDC"]
 
 

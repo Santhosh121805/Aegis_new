@@ -2,7 +2,7 @@
 
 Turns an agent's job history into a credit score, a risk band, and the collateral the
 chain will demand from it. Every number in every response comes from the fitted logistic
-regression in models/ -- nothing here is mocked.
+regression in models/, which is trained entirely on synthetic data (generate_data.py).
 
 Usage:
     python generate_data.py

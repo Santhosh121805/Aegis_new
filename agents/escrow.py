@@ -7,7 +7,7 @@
  markDelivered, accept, dispute, settle and the JobCreated / JobDelivered / JobDisputed /
  JobSettled events. They never see StubEscrow's own ABI.
 
- deployments/local.json["AegisEscrow"] is Teammate A's real AegisEscrow after a deploy, or
+ deployments/local.json["AegisEscrow"] is the real AegisEscrow after a deploy, or
  StubEscrow after `select_escrow.py --stub`; "escrowIsStub" says which. The agents need no
  change either way. The one escrow-specific step, approving mUSDC before createJob, lives
  in demo_driver.py because only the hirer moves tokens.

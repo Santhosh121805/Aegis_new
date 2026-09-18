@@ -20,8 +20,8 @@ decides who gets to transact on credit.
 ## How it works
 
 1. **Score.** Each agent has a score from 0 to 1000, derived from its job history:
-   jobs completed, dispute rate, defaults, payment timeliness, account age, counterparty
-   diversity. New agents start at 500.
+   jobs completed, dispute rate, defaults, clean-settlement rate (a proxy: no timing data
+   exists), account age, counterparty diversity (estimated from job count). New agents start at 500.
 
 2. **Credit.** The score sets how much collateral a hirer must post upfront, as a step
    function (see [SPEC.md §3](SPEC.md#3-collateral-curve)):
@@ -33,9 +33,10 @@ decides who gets to transact on credit.
    | `>= 400`   | 70%                |
    | below / unknown | 100%          |
 
-3. **Dispute.** If the worker under-delivers, the job is disputed, settlement moves the
-   money, and the outcome is recorded against both agents. The off-chain oracle rescores
-   them. No human arbitrator.
+3. **Dispute.** If the hirer disputes a delivery, settlement refunds the hirer's collateral,
+   the worker is not paid, and the outcome is recorded against the worker only. The
+   off-chain oracle rescores it. No human arbitrator. Known limitation: the hirer can
+   dispute any delivery at no cost to its own score (SPEC.md, intro).
 
 ---
 
@@ -87,8 +88,9 @@ remainder at `settle`, and refunds the collateral on a lost dispute. See SPEC.md
 
 ## Score service
 
-Python, FastAPI, scikit-learn. No database, no mock data — every response comes from the
-real fitted model.
+Python, FastAPI, scikit-learn. No database. Every response comes from the fitted model,
+which is trained entirely on synthetic data (`generate_data.py`): no real agent-economy data
+exists yet.
 
 ```bash
 cd score
@@ -137,7 +139,9 @@ History is in memory and replayed from block 0 on every start, so Anvil restarts
 anvil                                          # terminal 1
 cd contracts && python script/deploy_local.py  # writes deployments/local.json
 cd score && uvicorn app:app                    # terminal 2
-cd oracle && python -m venv .venv && .venv\Scripts\pip install -r requirements.txt
+# the rest run from the repo root
+python -m venv oracle\.venv && oracle\.venv\Scripts\pip install -r oracle\requirements.txt
+python -m venv agents\.venv && agents\.venv\Scripts\pip install -r agents\requirements.txt
 copy oracle\.env.example oracle\.env
 oracle\.venv\Scripts\python oracle\watcher.py   # terminal 3
 ```
@@ -208,7 +212,8 @@ The collateral step table is duplicated in two places:
 If those two ever disagree, the demo is broken: the score service quotes a collateral
 requirement the chain refuses to honour. Both copies carry a comment pointing at
 [SPEC.md §3](SPEC.md#3-collateral-curve). Change both together, or neither. The Python
-test suite asserts the mapping matches the contract's table exactly.
+test suite checks the Python table against a hand-written copy of the contract's table. It
+does not read the Solidity, so a change made only in the contract would not be caught.
 
 ---
 

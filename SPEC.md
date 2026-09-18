@@ -11,8 +11,14 @@ AEGIS is a credit and dispute layer for the AI agent economy:
 1. Agents carry a portable credit score built from their on-chain job history.
 2. A high-score agent hiring another agent posts only **partial** collateral instead of
    prepaying 100%. Low or unknown score means 100% upfront.
-3. If the worker under-delivers, a dispute resolves automatically, money moves, and both
-   agents' scores update. No human arbitrator.
+3. If the hirer disputes a delivery, the escrow settles it by a fixed rule with no human
+   arbitrator: the hirer's collateral is refunded, the worker is not paid, and the outcome is
+   recorded against the worker, whose score the oracle then updates.
+
+**Known limitation: disputes are asymmetric.** The hirer may dispute any delivered job, with
+no evidence, and always wins. A dispute costs the hirer nothing and is never recorded against
+it, so its score does not move. Only the worker's outcome is recorded. A hirer's own record
+changes only when it fails to pay the remainder on an accepted job (section 6).
 
 ---
 
@@ -39,6 +45,9 @@ Delivered -> Disputed -> Settled
 No other transition is legal. Any attempt to move between two states not connected above
 must revert.
 
+`Created` is never reachable on-chain: `createJob` takes the collateral in the same call, so
+every job starts at `Funded`.
+
 ---
 
 ## 2. AgentProfile
@@ -59,11 +68,17 @@ struct AgentProfile {
 | ------------------- | --------- | ------------------------------------------------------------ |
 | `addr`              | `address` | The agent's wallet address.                                   |
 | `score`             | `uint16`  | Credit score, clamped to `0-1000`. New agents start at `500`. |
-| `jobsCompleted`     | `uint32`  | Jobs where the worker delivered.                              |
-| `jobsDisputed`      | `uint32`  | Jobs that entered the `Disputed` state.                       |
-| `defaults`          | `uint32`  | Jobs where the worker failed to deliver.                      |
+| `jobsCompleted`     | `uint32`  | Outcomes recorded with `delivered = true`.                    |
+| `jobsDisputed`      | `uint32`  | Outcomes recorded with `disputed = true`.                     |
+| `defaults`          | `uint32`  | Outcomes recorded with `delivered = false`: a lost dispute, or a hirer failing to pay the remainder. |
 | `totalValueHandled` | `uint256` | Cumulative value of all jobs recorded against this agent.     |
 | `exists`            | `bool`    | `true` once registered. Distinguishes a new agent from a zeroed slot. |
+
+**A lost dispute counts three times.** The escrow records it as `delivered = false,
+disputed = true`, even though the worker called `markDelivered`. That raises `defaults` and
+`jobsDisputed` on-chain, and in the model it moves `dispute_rate`, `prior_defaults` and the
+clean-settlement proxy (`on_time_payment_rate`, section 7) together. `defaults` also counts a
+hirer's payment default (section 6), so the field mixes two different failures.
 
 **Score authority:** the score is written **only** by the off-chain oracle via
 `updateScore`. On-chain outcome recording (`recordOutcome`) updates counters and
@@ -150,7 +165,7 @@ reach the model as a $500,000,000,000,000 job.
 
 ## 6. Escrow interface
 
-Interface only. **No escrow logic is implemented yet.**
+Implemented by `contracts/src/AegisEscrow.sol` (below). The interface itself is unchanged.
 
 ```solidity
 interface IAegisEscrow {
@@ -301,8 +316,8 @@ Base Sepolia. Solidity `^0.8.20`. OpenZeppelin for `Ownable` and `IERC20`.
 
 ## 9. Out of scope tonight
 
-x402 integration is deliberately not built. The dashboard is not built yet; its read API,
-`GET /agents/state`, is (sample response: `docs/api_stub.json`).
+x402 integration is deliberately not built. The dashboard is built (`web/`, route `/dashboard`)
+and reads `GET /agents/state` (sample response: `docs/api_stub.json`).
 
 ---
 
@@ -319,4 +334,4 @@ history instead (`agents/seed_demo.py`). Doing it properly means re-running
 
 **Counterparty on `OutcomeRecorded`.** Adding the hirer's address to the event would let the
 oracle count `counterparty_diversity` exactly instead of estimating it from job count
-(section 7). An event change, so it waits until after the escrow build.
+(section 7). Not done, although the escrow is now built.
