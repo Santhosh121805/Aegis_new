@@ -108,7 +108,7 @@ def test_sloppy_agent_crosses_two_tiers():
 
     assert (sloppy["previous_band"], sloppy["band"]) == ("good", "poor")
     assert (sloppy["previous_required_collateral_pct"], sloppy["required_collateral_pct"]) == ("40%", "100%")
-    assert sloppy["score_delta"] == -230
+    assert sloppy["score_delta"] == -231
 
 
 def test_before_the_oracle_reports_the_response_says_so():

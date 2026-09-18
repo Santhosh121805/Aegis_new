@@ -2,9 +2,9 @@
   "source": "stub",
   "notice": "STUB. Sample response for GET /agents/state, captured from the working local demo. Same shape as the live endpoint; swap the URL to http://127.0.0.1:8000/agents/state when the score service is running.",
   "oracle_live": true,
-  "updated_at": "2026-09-18T07:42:36Z",
+  "updated_at": "2026-09-18T19:20:20Z",
   "chain_id": 31337,
-  "block": 125,
+  "block": 127,
   "agents": [
     {
       "address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
@@ -21,7 +21,7 @@
       "top_factors": [
         {
           "feature": "account_age_days",
-          "value": 730.0,
+          "value": 729.0,
           "impact": 170,
           "explanation": "Long-established account"
         },
@@ -45,40 +45,88 @@
           "value_usd": 500.0,
           "reason": "completed job #21, clean settlement (+7); top factor: long-established account",
           "delta": 7,
-          "timestamp": "2028-09-18T07:42:09Z"
+          "timestamp": "2026-09-18T19:09:50Z"
         },
         {
           "type": "job_completed",
           "job_id": null,
           "value_usd": 690.0,
-          "reason": "completed job #20, clean settlement (+18); top factor: long-established account",
-          "delta": 18,
-          "timestamp": "2028-09-18T07:41:32Z"
+          "reason": "completed job #20, clean settlement (+6); top factor: long-established account",
+          "delta": 6,
+          "timestamp": "2026-09-18T19:09:11Z"
         },
         {
           "type": "job_completed",
           "job_id": null,
           "value_usd": 250.0,
-          "reason": "completed job #19, clean settlement (+21); top factor: long-established account",
-          "delta": 21,
-          "timestamp": "2028-08-10T21:35:14Z"
+          "reason": "completed job #19, clean settlement (+9); top factor: long-established account",
+          "delta": 9,
+          "timestamp": "2026-09-18T19:09:11Z"
         },
         {
           "type": "job_completed",
           "job_id": null,
           "value_usd": 560.0,
-          "reason": "completed job #18, clean settlement (+19); top factor: long-established account",
-          "delta": 19,
-          "timestamp": "2028-07-03T11:28:56Z"
+          "reason": "completed job #18, clean settlement (+7); top factor: long-established account",
+          "delta": 7,
+          "timestamp": "2026-09-18T19:09:10Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 390.0,
+          "reason": "completed job #17, clean settlement (+8); top factor: long-established account",
+          "delta": 8,
+          "timestamp": "2026-09-18T19:09:09Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 760.0,
+          "reason": "completed job #16, clean settlement (+5); top factor: long-established account",
+          "delta": 5,
+          "timestamp": "2026-09-18T19:09:09Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 450.0,
+          "reason": "completed job #15, clean settlement (+7); top factor: long-established account",
+          "delta": 7,
+          "timestamp": "2026-09-18T19:09:08Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 640.0,
+          "reason": "completed job #14, clean settlement (+6); top factor: long-established account",
+          "delta": 6,
+          "timestamp": "2026-09-18T19:09:08Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 280.0,
+          "reason": "completed job #13, clean settlement (+10); top factor: long-established account",
+          "delta": 10,
+          "timestamp": "2026-09-18T19:09:07Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 500.0,
+          "reason": "completed job #12, clean settlement (+7); top factor: long-established account",
+          "delta": 7,
+          "timestamp": "2026-09-18T19:09:06Z"
         }
       ]
     },
     {
       "address": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
       "name": "SloppyAgent",
-      "score": 383,
+      "score": 382,
       "previous_score": 613,
-      "score_delta": -230,
+      "score_delta": -231,
       "band": "poor",
       "previous_band": "good",
       "required_collateral_bps": 10000,
@@ -94,7 +142,7 @@
         },
         {
           "feature": "account_age_days",
-          "value": 380.0,
+          "value": 379.0,
           "impact": 59,
           "explanation": "Long-established account"
         },
@@ -110,33 +158,81 @@
           "type": "dispute_lost",
           "job_id": 2,
           "value_usd": 500.0,
-          "reason": "lost dispute on $500 job (-230); top factor: more prior defaults than peers",
-          "delta": -230,
-          "timestamp": "2028-09-18T07:42:13Z"
+          "reason": "lost dispute on $500 job (-231); top factor: more prior defaults than peers",
+          "delta": -231,
+          "timestamp": "2026-09-18T19:09:54Z"
         },
         {
           "type": "job_completed",
           "job_id": null,
           "value_usd": 640.0,
-          "reason": "completed job #15, clean settlement (+22); top factor: long-established account",
-          "delta": 22,
-          "timestamp": "2028-09-18T07:41:38Z"
+          "reason": "completed job #15, clean settlement (+13); top factor: long-established account",
+          "delta": 13,
+          "timestamp": "2026-09-18T19:09:11Z"
         },
         {
           "type": "job_completed",
           "job_id": null,
           "value_usd": 280.0,
-          "reason": "completed job #14, clean settlement (+26); top factor: no prior defaults on record",
-          "delta": 26,
-          "timestamp": "2028-08-22T04:15:56Z"
+          "reason": "completed job #14, clean settlement (+18); top factor: long-established account",
+          "delta": 18,
+          "timestamp": "2026-09-18T19:09:11Z"
         },
         {
           "type": "job_completed",
           "job_id": null,
           "value_usd": 500.0,
-          "reason": "completed job #13, clean settlement (+26); top factor: no prior defaults on record",
-          "delta": 26,
-          "timestamp": "2028-07-26T00:50:14Z"
+          "reason": "completed job #13, clean settlement (+17); top factor: long-established account",
+          "delta": 17,
+          "timestamp": "2026-09-18T19:09:10Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 810.0,
+          "reason": "completed job #12, clean settlement (+16); top factor: long-established account",
+          "delta": 16,
+          "timestamp": "2026-09-18T19:09:10Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 360.0,
+          "reason": "completed job #11, clean settlement (+23); top factor: long-established account",
+          "delta": 23,
+          "timestamp": "2026-09-18T19:09:10Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 590.0,
+          "reason": "completed job #10, clean settlement (+24); top factor: long-established account",
+          "delta": 24,
+          "timestamp": "2026-09-18T19:09:09Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 470.0,
+          "reason": "completed job #9, clean settlement (+29); top factor: long-established account",
+          "delta": 29,
+          "timestamp": "2026-09-18T19:09:09Z"
+        },
+        {
+          "type": "dispute_won",
+          "job_id": null,
+          "value_usd": 450.0,
+          "reason": "won dispute on $450 job (-189); top factor: long-established account",
+          "delta": -189,
+          "timestamp": "2026-09-18T19:09:08Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 720.0,
+          "reason": "completed job #7, clean settlement (+3); top factor: clean settlement almost without exception",
+          "delta": 3,
+          "timestamp": "2026-09-18T19:09:08Z"
         }
       ]
     },
@@ -144,8 +240,8 @@
       "address": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
       "name": "Hirer",
       "score": 877,
-      "previous_score": 860,
-      "score_delta": 17,
+      "previous_score": 871,
+      "score_delta": 6,
       "band": "excellent",
       "previous_band": "excellent",
       "required_collateral_bps": 2000,
@@ -177,33 +273,81 @@
           "type": "job_completed",
           "job_id": null,
           "value_usd": 650.0,
-          "reason": "completed job #22, clean settlement (+17); top factor: long-established account",
-          "delta": 17,
-          "timestamp": "2028-09-18T07:41:39Z"
+          "reason": "completed job #22, clean settlement (+6); top factor: long-established account",
+          "delta": 6,
+          "timestamp": "2026-09-18T19:09:11Z"
         },
         {
           "type": "job_completed",
           "job_id": null,
           "value_usd": 420.0,
-          "reason": "completed job #21, clean settlement (+18); top factor: long-established account",
-          "delta": 18,
-          "timestamp": "2028-08-14T13:24:30Z"
+          "reason": "completed job #21, clean settlement (+7); top factor: long-established account",
+          "delta": 7,
+          "timestamp": "2026-09-18T19:09:11Z"
         },
         {
           "type": "job_completed",
           "job_id": null,
           "value_usd": 690.0,
-          "reason": "completed job #20, clean settlement (+17); top factor: long-established account",
-          "delta": 17,
-          "timestamp": "2028-07-10T19:07:22Z"
+          "reason": "completed job #20, clean settlement (+6); top factor: long-established account",
+          "delta": 6,
+          "timestamp": "2026-09-18T19:09:10Z"
         },
         {
           "type": "job_completed",
           "job_id": null,
           "value_usd": 250.0,
-          "reason": "completed job #19, clean settlement (+20); top factor: long-established account",
-          "delta": 20,
-          "timestamp": "2028-06-06T00:50:14Z"
+          "reason": "completed job #19, clean settlement (+9); top factor: long-established account",
+          "delta": 9,
+          "timestamp": "2026-09-18T19:09:10Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 560.0,
+          "reason": "completed job #18, clean settlement (+7); top factor: long-established account",
+          "delta": 7,
+          "timestamp": "2026-09-18T19:09:09Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 390.0,
+          "reason": "completed job #17, clean settlement (+8); top factor: long-established account",
+          "delta": 8,
+          "timestamp": "2026-09-18T19:09:08Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 760.0,
+          "reason": "completed job #16, clean settlement (+5); top factor: long-established account",
+          "delta": 5,
+          "timestamp": "2026-09-18T19:09:08Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 450.0,
+          "reason": "completed job #15, clean settlement (+7); top factor: long-established account",
+          "delta": 7,
+          "timestamp": "2026-09-18T19:09:07Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 640.0,
+          "reason": "completed job #14, clean settlement (+6); top factor: long-established account",
+          "delta": 6,
+          "timestamp": "2026-09-18T19:09:07Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 280.0,
+          "reason": "completed job #13, clean settlement (+10); top factor: long-established account",
+          "delta": 10,
+          "timestamp": "2026-09-18T19:09:06Z"
         }
       ]
     }
