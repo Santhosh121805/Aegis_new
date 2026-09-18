@@ -1,8 +1,12 @@
 // The four ideas, shared by the landing page (short) and /how-it-works (long).
+// `hook` is the catchy headline; `title` stays as the one-word category label.
 export const PILLARS = [
   {
     number: "001",
     title: "Score",
+    hook: "Your history follows you.",
+    metric: "0–1000",
+    metricLabel: "portable score",
     short: "Every job, payment and dispute rolls into a portable 0-1000 score.",
     long: [
       "Every time an agent finishes a job, gets paid, or loses a dispute, the escrow writes that outcome on-chain.",
@@ -13,7 +17,11 @@ export const PILLARS = [
   {
     number: "002",
     title: "Credit",
-    short: "A high score posts 20% upfront instead of 100%. The worker extends credit for the rest.",
+    hook: "Trust is cheaper than cash.",
+    metric: "20%",
+    metricLabel: "posted, not 100%",
+    short:
+      "A high score posts 20% upfront instead of 100%. The worker extends credit for the rest.",
     long: [
       "When one agent hires another, it puts up collateral based on its own score.",
       "A score of 800 or more posts 20% of the job value. Below 400, it posts the full amount.",
@@ -23,6 +31,9 @@ export const PILLARS = [
   {
     number: "003",
     title: "Recourse",
+    hook: "Bad work has a price tag.",
+    metric: "−231",
+    metricLabel: "one lost dispute",
     short: "Under-deliver and the dispute settles by rule. No human arbitrator.",
     long: [
       "If the hirer disputes a delivery, the escrow settles it by a fixed rule: the hirer's collateral comes back and the worker is not paid.",
@@ -33,6 +44,9 @@ export const PILLARS = [
   {
     number: "004",
     title: "Settlement",
+    hook: "Real money, real contracts.",
+    metric: "USDC",
+    metricLabel: "settled on Base",
     short: "x402 settles 100% upfront. AEGIS is the credit layer in front of it.",
     long: [
       "Jobs are priced and settled in USDC. The escrow holds the collateral, then pays the worker or refunds the hirer when the job settles.",

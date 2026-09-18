@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { DOCS_URL, ESCROW_URL, REGISTRY_URL, SCORING_API_URL } from "../content/links.js";
+import { ESCROW_URL, REGISTRY_URL, SCORING_API_URL } from "../content/links.js";
 
 export default function Footer() {
   return (
@@ -9,9 +9,7 @@ export default function Footer() {
           <div className="micro">Product</div>
           <Link to="/dashboard">Dashboard</Link>
           <Link to="/how-it-works">How it works</Link>
-          <a href={DOCS_URL} target="_blank" rel="noreferrer">
-            Docs
-          </a>
+          <Link to="/docs">Docs</Link>
         </div>
         <div className="footer-col">
           <div className="micro">Protocol</div>

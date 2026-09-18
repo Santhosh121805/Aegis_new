@@ -1,5 +1,4 @@
 import { Link, NavLink } from "react-router-dom";
-import { DOCS_URL } from "../content/links.js";
 
 // `status` replaces the Open Dashboard button on /dashboard, where it would link to itself.
 export default function Nav({ status }) {
@@ -14,9 +13,7 @@ export default function Nav({ status }) {
             Overview
           </NavLink>
           <NavLink to="/how-it-works">How it works</NavLink>
-          <a href={DOCS_URL} target="_blank" rel="noreferrer">
-            Docs
-          </a>
+          <NavLink to="/docs">Docs</NavLink>
         </div>
         <div className="nav-right">
           {status ?? (

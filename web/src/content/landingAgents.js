@@ -2,6 +2,7 @@
 // read from docs/api_stub.json at build time so the numbers can never drift from the demo.
 import stub from "../../../docs/api_stub.json";
 import { EVENT_LABELS, shortAddress, signed } from "../lib/format.js";
+import { FLASHCARD_QUOTES } from "./flashcards.js";
 
 const JOB_USD = 500;
 const byName = Object.fromEntries(stub.agents.map((agent) => [agent.name, agent]));
@@ -42,3 +43,16 @@ export const LANDING_AGENTS = [
     ["Collateral", collateral(a)],
   ]),
 ];
+
+// Same three agents, shaped for the flashcard section: real score/band/delta plus a quote.
+export const FLASHCARD_AGENTS = ["Hirer", "HonestAgent", "SloppyAgent"].map((name) => {
+  const agent = byName[name];
+  return {
+    name,
+    band: agent.band,
+    path: shortAddress(agent.address),
+    score: agent.score,
+    delta: agent.recent_events[0].delta,
+    quote: FLASHCARD_QUOTES[name],
+  };
+});

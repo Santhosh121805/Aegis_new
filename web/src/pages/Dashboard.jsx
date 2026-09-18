@@ -1,3 +1,4 @@
+import Ambient from "../components/Ambient.jsx";
 import ActivityFeed from "../components/ActivityFeed.jsx";
 import AgentCard from "../components/AgentCard.jsx";
 import Footer from "../components/Footer.jsx";
@@ -14,6 +15,7 @@ export default function Dashboard() {
 
   return (
     <>
+      <Ambient />
       <Nav status={<LiveStatus state={state} error={error} />} />
       <main className="page page-dashboard">
         <StatusBanner state={state} error={error} />
@@ -34,9 +36,7 @@ export default function Dashboard() {
             ))}
           </div>
         )}
-        {agents.length > 0 && (
-          <ActivityFeed agents={agents} recorded={state?.source === "chain"} />
-        )}
+        {agents.length > 0 && <ActivityFeed agents={agents} recorded={state?.source === "chain"} />}
       </main>
       <Footer />
     </>
