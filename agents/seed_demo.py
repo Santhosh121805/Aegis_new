@@ -4,7 +4,7 @@ A credit model is at its worst on an agent with no history -- one bad job on a t
 genuinely is disqualifying. So the demo agents do not start cold: this script gives them a
 track record first, by calling recordOutcome from the stand-in escrow account.
 
-    HonestAgent  20 clean $60 jobs over two years           -> lands ~814, excellent, 2000 bps
+    HonestAgent  20 clean $60 jobs over two years           -> lands ~813, excellent, 2000 bps
     SloppyAgent  14 clean + 1 disputed-but-delivered job,
                  $60 each, over the last 460 days           -> lands ~618, good,      4000 bps
 
@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from chain import account, connect, contract, load_deployment, owner_account, send
 
 DAY = 86_400
-USDC = 10**6  # recordOutcome values are 6-decimal USDC, SPEC.md section 6
+USDC = 10**6  # recordOutcome values are 6-decimal USDC, SPEC.md section 5
 
 ORACLE_WAIT_SECONDS = 90
 
@@ -173,6 +173,14 @@ def main() -> int:
     w3 = connect(deployment)
     registry = contract(w3, deployment, "AegisRegistry")
 
+    # A run that died mid-seed may have left the escrow slot borrowed. Hand it back.
+    seeder_address = account(deployment, "Seeder").address
+    if registry.functions.escrow().call() == seeder_address and deployment.get("AegisEscrow"):
+        escrow = registry.functions.escrow().call()
+        send(w3, owner_account(deployment),
+             registry.functions.setEscrow(w3.to_checksum_address(deployment["AegisEscrow"])))
+        print(f"Escrow was left pointing at the seeder ({escrow}); restored to {deployment['AegisEscrow']}")
+
     state = seed_state(registry, deployment)
     if state == "seeded":
         print("Demo agents already hold the seed history. Nothing to record.")
@@ -187,7 +195,8 @@ def main() -> int:
         original_escrow = registry.functions.escrow().call()
 
         # recordOutcome is escrow-only. If a contract escrow is wired in, borrow the slot for
-        # the seeder and always hand it back, even if seeding fails halfway.
+        # the seeder and always hand it back, even if seeding fails halfway. The hand-back
+        # waits for the oracle first: both sign as account 0 and would race for the nonce.
         borrowed = original_escrow != seeder.address
         if borrowed:
             print(f"Pointing escrow at the seeder ({seeder.address}) for the duration")
@@ -195,12 +204,18 @@ def main() -> int:
         try:
             print("Recording seed history", end="", flush=True)
             record_history(w3, registry, deployment)
+            caught_up = wait_for_oracle(registry, deployment)
         finally:
             if borrowed:
                 send(w3, owner, registry.functions.setEscrow(original_escrow))
                 print(f"Escrow restored to {original_escrow}")
+        return report(registry, deployment, caught_up)
 
-    if not wait_for_oracle(registry, deployment):
+    return report(registry, deployment, wait_for_oracle(registry, deployment))
+
+
+def report(registry, deployment, caught_up: bool) -> int:
+    if not caught_up:
         print(f"The oracle has not rescored within {ORACLE_WAIT_SECONDS}s. Is it running?")
         print("Start it and it will catch up on its own: oracle/.venv/Scripts/python oracle/watcher.py")
         print_scores(registry, deployment)

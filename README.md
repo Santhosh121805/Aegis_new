@@ -46,7 +46,7 @@ aegis/
   SPEC.md          Frozen type definitions. Source of truth.
   contracts/       Foundry project — AegisRegistry (implemented), IAegisEscrow (interface only)
   score/           Python — synthetic data, logistic regression, FastAPI scoring service
-  agents/          (not built yet)
+  agents/          Demo agents, seeding script, stand-in hirer driver
   dashboard/       (not built yet)
 ```
 
@@ -134,12 +134,8 @@ copy oracle\.env.example oracle\.env
 oracle\.venv\Scripts\python oracle\watcher.py   # terminal 3
 ```
 
-Until `AegisEscrow` exists, the local deploy sets `escrow` to Anvil account 9, so an outcome
-can be recorded by hand (value is in 6-decimal units, so `500000000` is $500):
-
-```bash
-cast send <AegisRegistry> 'recordOutcome(address,bool,bool,uint256)' <agent> false true 500000000   --private-key 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
-```
+Until `AegisEscrow` exists, the local deploy wires in `StubEscrow`, a clearly labelled
+stand-in (no tokens move, disputes always go against the worker).
 
 ### Seeding the demo agents
 
@@ -150,6 +146,19 @@ agents\.venv\Scripts\python agents\seed_demo.py
 Gives HonestAgent (account 1) and SloppyAgent (account 2) a prior track record so the demo
 does not start from a cold file: ~813 / excellent and ~618 / good. Idempotent; after a live
 run, restart anvil and redeploy to seed again.
+
+### Running the agents
+
+```bash
+agents\.venv\Scripts\python agents\honest_agent.py          # terminal 4
+agents\.venv\Scripts\python agents\sloppy_agent.py          # terminal 5
+agents\.venv\Scripts\python agents\demo_driver.py --worker SloppyAgent   # one job, end to end
+```
+
+`demo_driver.py` is a stand-in hirer: it posts a job, disputes any delivery that comes back
+in under 2s (SloppyAgent) and accepts the rest (HonestAgent), settles, and prints the rescore.
+Agents talk to the escrow only through the `IAegisEscrow` ABI; see `agents/escrow.py` for
+where the real escrow plugs in.
 
 ---
 
@@ -170,7 +179,6 @@ test suite asserts the mapping matches the contract's table exactly.
 ## Not built yet
 
 - Escrow logic (interface only)
-- Agent scripts
-- Real escrow (local deploy uses Anvil account 9 as a stand-in)
+- Real escrow (local deploy uses `StubEscrow` as a stand-in)
 - Dashboard
 - x402 integration

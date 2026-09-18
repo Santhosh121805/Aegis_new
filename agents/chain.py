@@ -8,10 +8,12 @@ so no secret is stored anywhere. Local chain only.
 from __future__ import annotations
 
 import json
+import time
 from pathlib import Path
 
 from eth_account import Account
 from web3 import Web3
+from web3.exceptions import Web3RPCError
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEPLOYMENTS_PATH = REPO_ROOT / "deployments" / "local.json"
@@ -81,6 +83,7 @@ def send(w3: Web3, acct, call, attempts: int = 3):
             if receipt.status != 1:
                 raise RuntimeError(f"transaction reverted: {tx_hash.hex()}")
             return receipt
-        except ValueError as exc:
+        except (ValueError, Web3RPCError) as exc:
             if "nonce" not in str(exc).lower() or attempt == attempts - 1:
                 raise
+            time.sleep(0.5)

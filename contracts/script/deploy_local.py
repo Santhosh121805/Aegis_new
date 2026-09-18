@@ -57,18 +57,22 @@ def main() -> int:
 
     transactions = json.loads(BROADCAST.read_text())["transactions"]
 
-    registry = next(
-        tx["contractAddress"]
+    created = {
+        tx["contractName"]: tx["contractAddress"]
         for tx in transactions
-        if tx["transactionType"] == "CREATE" and tx["contractName"] == "AegisRegistry"
-    )
+        if tx["transactionType"] == "CREATE"
+    }
     calls = {tx["function"]: tx["arguments"][0] for tx in transactions if tx["transactionType"] == "CALL"}
     owner = transactions[0]["transaction"]["from"]
 
     deployment = {
         "chainId": CHAIN_ID,
         "rpcUrl": RPC_URL,
-        "AegisRegistry": registry,
+        "AegisRegistry": created["AegisRegistry"],
+        # STAND-IN. When the real escrow deploys, record its address here instead and set
+        # escrowIsStub to false. Agents talk to it through the IAegisEscrow ABI only.
+        "AegisEscrow": created["StubEscrow"],
+        "escrowIsStub": True,
         "owner": owner,
         "scoreOracle": calls["setScoreOracle(address)"],
         "escrow": calls["setEscrow(address)"],

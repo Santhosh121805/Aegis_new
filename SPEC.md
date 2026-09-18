@@ -170,9 +170,12 @@ interface IAegisEscrow {
 
 ### Stand-in escrow (local development)
 
-Until the real escrow deploys, `contracts/script/deploy_local.py` sets `escrow` to Anvil
-account 9, a plain EOA, so `recordOutcome` can be called by hand with `cast` and by
-`agents/seed_demo.py`.
+Until the real escrow deploys, `contracts/script/deploy_local.py` deploys
+`contracts/src/StubEscrow.sol` and points `escrow` at it. It implements this interface and
+the section 1 state machine, but moves no tokens and settles every dispute against the
+worker. `agents/seed_demo.py` temporarily points `escrow` at Anvil account 9 to record seed
+history, then hands it back. The agents use only the `IAegisEscrow` ABI, so swapping in the
+real escrow is an address change in `deployments/local.json`.
 
 **When the real escrow deploys, `setEscrow` MUST point at it.** Otherwise `recordOutcome`
 reverts with `NotEscrow`: the escrow's `settle` either reverts with it, or, if the escrow
