@@ -29,7 +29,7 @@
           "feature": "on_time_payment_rate",
           "value": 1.0,
           "impact": 106,
-          "explanation": "Pays on time almost without exception"
+          "explanation": "Clean settlement almost without exception"
         },
         {
           "feature": "dispute_rate",
@@ -43,7 +43,7 @@
           "type": "job_completed",
           "job_id": 1,
           "value_usd": 500.0,
-          "reason": "completed job #21, on-time (+7); top factor: long-established account",
+          "reason": "completed job #21, clean settlement (+7); top factor: long-established account",
           "delta": 7,
           "timestamp": "2028-09-18T07:42:09Z"
         },
@@ -51,7 +51,7 @@
           "type": "job_completed",
           "job_id": null,
           "value_usd": 690.0,
-          "reason": "completed job #20, on-time (+18); top factor: long-established account",
+          "reason": "completed job #20, clean settlement (+18); top factor: long-established account",
           "delta": 18,
           "timestamp": "2028-09-18T07:41:32Z"
         },
@@ -59,7 +59,7 @@
           "type": "job_completed",
           "job_id": null,
           "value_usd": 250.0,
-          "reason": "completed job #19, on-time (+21); top factor: long-established account",
+          "reason": "completed job #19, clean settlement (+21); top factor: long-established account",
           "delta": 21,
           "timestamp": "2028-08-10T21:35:14Z"
         },
@@ -67,7 +67,7 @@
           "type": "job_completed",
           "job_id": null,
           "value_usd": 560.0,
-          "reason": "completed job #18, on-time (+19); top factor: long-established account",
+          "reason": "completed job #18, clean settlement (+19); top factor: long-established account",
           "delta": 19,
           "timestamp": "2028-07-03T11:28:56Z"
         }
@@ -118,7 +118,7 @@
           "type": "job_completed",
           "job_id": null,
           "value_usd": 640.0,
-          "reason": "completed job #15, on-time (+22); top factor: long-established account",
+          "reason": "completed job #15, clean settlement (+22); top factor: long-established account",
           "delta": 22,
           "timestamp": "2028-09-18T07:41:38Z"
         },
@@ -126,7 +126,7 @@
           "type": "job_completed",
           "job_id": null,
           "value_usd": 280.0,
-          "reason": "completed job #14, on-time (+26); top factor: no prior defaults on record",
+          "reason": "completed job #14, clean settlement (+26); top factor: no prior defaults on record",
           "delta": 26,
           "timestamp": "2028-08-22T04:15:56Z"
         },
@@ -134,7 +134,7 @@
           "type": "job_completed",
           "job_id": null,
           "value_usd": 500.0,
-          "reason": "completed job #13, on-time (+26); top factor: no prior defaults on record",
+          "reason": "completed job #13, clean settlement (+26); top factor: no prior defaults on record",
           "delta": 26,
           "timestamp": "2028-07-26T00:50:14Z"
         }
@@ -163,7 +163,7 @@
           "feature": "on_time_payment_rate",
           "value": 1.0,
           "impact": 106,
-          "explanation": "Pays on time almost without exception"
+          "explanation": "Clean settlement almost without exception"
         },
         {
           "feature": "dispute_rate",
@@ -177,7 +177,7 @@
           "type": "job_completed",
           "job_id": null,
           "value_usd": 650.0,
-          "reason": "completed job #22, on-time (+17); top factor: long-established account",
+          "reason": "completed job #22, clean settlement (+17); top factor: long-established account",
           "delta": 17,
           "timestamp": "2028-09-18T07:41:39Z"
         },
@@ -185,7 +185,7 @@
           "type": "job_completed",
           "job_id": null,
           "value_usd": 420.0,
-          "reason": "completed job #21, on-time (+18); top factor: long-established account",
+          "reason": "completed job #21, clean settlement (+18); top factor: long-established account",
           "delta": 18,
           "timestamp": "2028-08-14T13:24:30Z"
         },
@@ -193,7 +193,7 @@
           "type": "job_completed",
           "job_id": null,
           "value_usd": 690.0,
-          "reason": "completed job #20, on-time (+17); top factor: long-established account",
+          "reason": "completed job #20, clean settlement (+17); top factor: long-established account",
           "delta": 17,
           "timestamp": "2028-07-10T19:07:22Z"
         },
@@ -201,7 +201,7 @@
           "type": "job_completed",
           "job_id": null,
           "value_usd": 250.0,
-          "reason": "completed job #19, on-time (+20); top factor: long-established account",
+          "reason": "completed job #19, clean settlement (+20); top factor: long-established account",
           "delta": 20,
           "timestamp": "2028-06-06T00:50:14Z"
         }

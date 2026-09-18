@@ -161,11 +161,11 @@ EXPLANATIONS: dict[str, dict[str, str]] = {
         "much_low": "Very new account with little history",
     },
     "on_time_payment_rate": {
-        "much_high": "Pays on time almost without exception",
-        "high": "Pays on time more reliably than peers",
-        "mid": "Payment timeliness close to the peer average",
-        "low": "Misses payment deadlines more often than peers",
-        "much_low": "Frequently misses payment deadlines",
+        "much_high": "Clean settlement almost without exception",
+        "high": "Settles clean more often than peers",
+        "mid": "Clean-settlement rate close to the peer average",
+        "low": "Settles clean less often than peers",
+        "much_low": "Rarely settles clean",
     },
     "prior_defaults": {
         "much_high": "Many prior defaults on record",
@@ -219,7 +219,7 @@ class AgentFeatures(BaseModel):
     avg_job_value_usd: float = Field(..., gt=0, description="Mean job value in USD.")
     account_age_days: int = Field(..., ge=0, description="Days since first activity.")
     on_time_payment_rate: float = Field(
-        ..., ge=0.0, le=1.0, description="Fraction of obligations met on time."
+        ..., ge=0.0, le=1.0, description="Clean-settlement proxy: delivered and never disputed, over all jobs. No timing data."
     )
     prior_defaults: int = Field(..., ge=0, description="Jobs this agent failed to deliver.")
     # A float because the oracle path supplies an ESTIMATE (jobs * 0.6, unrounded); real

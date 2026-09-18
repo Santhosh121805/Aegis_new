@@ -4,7 +4,7 @@ Built from the event that triggered the rescore plus the model's top factor, alw
 point delta the chain will show:
 
     "lost dispute on $500 job (-64); top factor: dispute rate far above peers"
-    "completed job #12, on-time (+18); top factor: pays on time almost without exception"
+    "completed job #12, clean settlement (+18); top factor: clean settlement almost without exception"
     "payment default on $1000 job (-140); top factor: many prior defaults on record"
 """
 
@@ -20,13 +20,13 @@ def _money(value_usd: float) -> str:
 def describe_event(outcome: Outcome, job_number: int) -> str:
     """What happened, in the words the dashboard shows.
 
-    `job_number` is the agent's count of delivered jobs including this one. "On-time" follows
+    `job_number` is the agent's count of delivered jobs including this one. "Clean settlement" follows
     the score service's proxy: delivered and never disputed is a clean settlement.
     """
     value = _money(outcome.value_usd)
 
     if outcome.delivered and not outcome.disputed:
-        return f"completed job #{job_number}, on-time"
+        return f"completed job #{job_number}, clean settlement"
     if outcome.delivered and outcome.disputed:
         return f"won dispute on {value} job"
     if outcome.disputed:

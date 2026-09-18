@@ -220,7 +220,7 @@ The off-chain scoring model consumes seven features per agent.
 | `dispute_rate`           | `float` | `0.0 - 1.0`, most agents near 0          |
 | `avg_job_value_usd`      | `float` | `> 0`, lognormal                         |
 | `account_age_days`       | `int`   | `>= 0`                                   |
-| `on_time_payment_rate`   | `float` | `0.0 - 1.0`, skewed high                 |
+| `on_time_payment_rate`   | `float` | `0.0 - 1.0`, skewed high. Name kept for the trained model; in the oracle path it is a **clean-settlement proxy** (delivered and never disputed, over all jobs). No timing data exists. |
 | `prior_defaults`         | `int`   | `>= 0`, mostly 0                         |
 | `counterparty_diversity` | `float` | `>= 0`, distinct agents transacted with; estimated in the oracle path (below) |
 

@@ -15,7 +15,7 @@ export const usd = (value) =>
   "$" + Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 });
 
 export const EVENT_LABELS = {
-  job_completed: "completed on-time",
+  job_completed: "clean settlement",
   dispute_won: "won dispute",
   dispute_lost: "lost dispute",
   payment_default: "payment default",
@@ -26,7 +26,7 @@ export const FEATURE_LABELS = {
   dispute_rate: "Dispute rate",
   avg_job_value_usd: "Avg job value",
   account_age_days: "Account age",
-  on_time_payment_rate: "On-time rate",
+  on_time_payment_rate: "Clean settlements",
   prior_defaults: "Prior defaults",
   counterparty_diversity: "Counterparties",
 };
