@@ -4,11 +4,14 @@ A credit model is at its worst on an agent with no history -- one bad job on a t
 genuinely is disqualifying. So the demo agents do not start cold: this script gives them a
 track record first, by calling recordOutcome from the stand-in escrow account.
 
-    HonestAgent  20 clean $60 jobs over two years           -> lands ~813, excellent, 2000 bps
+    HonestAgent  20 clean jobs over two years               -> lands ~864, excellent, 2000 bps
     SloppyAgent  14 clean + 1 disputed-but-delivered job,
-                 $60 each, over the last 460 days           -> lands ~618, good,      4000 bps
+                 over the last 380 days                     -> lands ~613, good,      4000 bps
 
-SloppyAgent's live lost dispute then drops it to ~383: two tiers, 4000 -> 10000 bps.
+Job values vary between $230 and $880, averaging ~$500, so the live $500 demo job is an
+ordinary job for both agents rather than a spike the model rightly reads as risk. With that
+history a clean $500 job is worth about +11, and SloppyAgent's live lost dispute drops it
+to ~383: two tiers, 4000 -> 10000 bps.
 
 History is spread over time with Anvil's clock (evm_setNextBlockTimestamp), because account
 age is one of the seven features. The chain clock therefore ends about two years ahead of
@@ -40,41 +43,54 @@ ORACLE_WAIT_SECONDS = 90
 BAND_BY_BPS = {2000: "excellent", 4000: "good", 7000: "fair", 10000: "poor"}
 
 
+# Job values in USD, deliberately uneven. Mean $525, range $230-$880.
+JOB_VALUES_USD = [420, 650, 310, 880, 540, 230, 720, 470, 590, 360,
+                  810, 500, 280, 640, 450, 760, 390, 560, 250, 690]
+
+
+@dataclass(frozen=True)
+class SeedOutcome:
+    delivered: bool
+    disputed: bool
+    value_usd: int
+
+
 @dataclass(frozen=True)
 class SeedPlan:
     role: str
-    outcomes: list[tuple[bool, bool]]  # (delivered, disputed), oldest first
-    value_usd: int
+    outcomes: list[SeedOutcome]  # oldest first
     span_days: int  # first job this many days before the end of seeding
 
     @property
     def counts(self) -> tuple[int, int, int]:
         """(jobsCompleted, jobsDisputed, defaults) the Registry will hold once seeded."""
         return (
-            sum(1 for delivered, _ in self.outcomes if delivered),
-            sum(1 for _, disputed in self.outcomes if disputed),
-            sum(1 for delivered, _ in self.outcomes if not delivered),
+            sum(1 for outcome in self.outcomes if outcome.delivered),
+            sum(1 for outcome in self.outcomes if outcome.disputed),
+            sum(1 for outcome in self.outcomes if not outcome.delivered),
         )
 
 
-CLEAN = (True, False)
-DISPUTED_BUT_DELIVERED = (True, True)
+def clean(count: int) -> list[SeedOutcome]:
+    return [SeedOutcome(True, False, JOB_VALUES_USD[i % len(JOB_VALUES_USD)]) for i in range(count)]
+
+
+def with_disputed_but_delivered(outcomes: list[SeedOutcome]) -> list[SeedOutcome]:
+    """Insert one job the hirer disputed but the worker won, mid-history."""
+    middle = len(outcomes) // 2
+    return outcomes[:middle] + [SeedOutcome(True, True, 450)] + outcomes[middle:]
+
 
 # Tuned against the live model. SloppyAgent is the demo's pivot: it must sit clearly inside
-# "good" and one lost $500 dispute must take it clearly under 400. These numbers leave about
-# 18 points of margin on each side.
+# "good" and one lost $500 dispute must take it clearly under 400. These numbers leave 14
+# points of margin above 600 and 17 below 400.
 PLANS = [
-    SeedPlan("HonestAgent", [CLEAN] * 20, value_usd=60, span_days=730),
-    SeedPlan(
-        "SloppyAgent",
-        [CLEAN] * 7 + [DISPUTED_BUT_DELIVERED] + [CLEAN] * 7,
-        value_usd=60,
-        span_days=460,
-    ),
+    SeedPlan("HonestAgent", clean(20), span_days=730),
+    SeedPlan("SloppyAgent", with_disputed_but_delivered(clean(14)), span_days=380),
 ]
 
 
-def schedule(start: int) -> list[tuple[int, SeedPlan, tuple[bool, bool]]]:
+def schedule(start: int) -> list[tuple[int, SeedPlan, SeedOutcome]]:
     """Every seed outcome with its block timestamp, all plans ending at the same moment."""
     end = start + max(plan.span_days for plan in PLANS) * DAY
     events = []
@@ -111,12 +127,13 @@ def record_history(w3, registry, deployment) -> None:
     seeder = account(deployment, "Seeder")
     events = schedule(start=w3.eth.get_block("latest").timestamp + DAY)
 
-    for timestamp, plan, (delivered, disputed) in events:
+    for timestamp, plan, outcome in events:
         # The oracle mines its own blocks in between, so never ask for a time in the past.
         timestamp = max(timestamp, w3.eth.get_block("latest").timestamp + 1)
         w3.provider.make_request("evm_setNextBlockTimestamp", [timestamp])
         send(w3, seeder, registry.functions.recordOutcome(
-            deployment["accounts"][plan.role]["address"], delivered, disputed, plan.value_usd * USDC
+            deployment["accounts"][plan.role]["address"],
+            outcome.delivered, outcome.disputed, outcome.value_usd * USDC,
         ))
         print(".", end="", flush=True)
     print(f" {len(events)} outcomes recorded")
