@@ -1,0 +1,211 @@
+{
+  "source": "stub",
+  "notice": "STUB. Sample response for GET /agents/state, captured from the working local demo. Same shape as the live endpoint; swap the URL to http://127.0.0.1:8000/agents/state when the score service is running.",
+  "oracle_live": true,
+  "updated_at": "2026-09-18T13:05:12Z",
+  "chain_id": 31337,
+  "block": 126,
+  "agents": [
+    {
+      "address": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+      "name": "HonestAgent",
+      "score": 875,
+      "previous_score": 864,
+      "score_delta": 11,
+      "band": "excellent",
+      "previous_band": "excellent",
+      "required_collateral_bps": 2000,
+      "required_collateral_pct": "20%",
+      "previous_required_collateral_bps": 2000,
+      "previous_required_collateral_pct": "20%",
+      "top_factors": [
+        {
+          "feature": "account_age_days",
+          "value": 730,
+          "impact": 170,
+          "explanation": "Long-established account"
+        },
+        {
+          "feature": "on_time_payment_rate",
+          "value": 1,
+          "impact": 106,
+          "explanation": "Pays on time almost without exception"
+        },
+        {
+          "feature": "dispute_rate",
+          "value": 0,
+          "impact": 56,
+          "explanation": "No disputes on record"
+        }
+      ],
+      "recent_events": [
+        {
+          "type": "job_completed",
+          "job_id": 1,
+          "value_usd": 500,
+          "reason": "completed job #21, on-time (+11); top factor: long-established account",
+          "delta": 11,
+          "timestamp": "2028-09-18T07:23:41Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 690,
+          "reason": "completed job #20, on-time (+22); top factor: long-established account",
+          "delta": 22,
+          "timestamp": "2028-09-18T07:23:01Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 250,
+          "reason": "completed job #19, on-time (+15); top factor: long-established account",
+          "delta": 15,
+          "timestamp": "2028-08-10T21:16:43Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 560,
+          "reason": "completed job #18, on-time (+23); top factor: long-established account",
+          "delta": 23,
+          "timestamp": "2028-07-03T11:10:25Z"
+        }
+      ]
+    },
+    {
+      "address": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "name": "SloppyAgent",
+      "score": 383,
+      "previous_score": 613,
+      "score_delta": -230,
+      "band": "poor",
+      "previous_band": "good",
+      "required_collateral_bps": 10000,
+      "required_collateral_pct": "100%",
+      "previous_required_collateral_bps": 4000,
+      "previous_required_collateral_pct": "40%",
+      "top_factors": [
+        {
+          "feature": "prior_defaults",
+          "value": 1,
+          "impact": -86,
+          "explanation": "More prior defaults than peers"
+        },
+        {
+          "feature": "account_age_days",
+          "value": 380,
+          "impact": 59,
+          "explanation": "Long-established account"
+        },
+        {
+          "feature": "avg_job_value_usd",
+          "value": 521.875,
+          "impact": -51,
+          "explanation": "Handles jobs far larger than peers"
+        }
+      ],
+      "recent_events": [
+        {
+          "type": "dispute_lost",
+          "job_id": 2,
+          "value_usd": 500,
+          "reason": "lost dispute on $500 job (-230); top factor: more prior defaults than peers",
+          "delta": -230,
+          "timestamp": "2028-09-18T07:23:44Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 640,
+          "reason": "completed job #15, on-time (+25); top factor: long-established account",
+          "delta": 25,
+          "timestamp": "2028-09-18T07:23:07Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 280,
+          "reason": "completed job #14, on-time (+21); top factor: no prior defaults on record",
+          "delta": 21,
+          "timestamp": "2028-08-22T03:57:25Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 500,
+          "reason": "completed job #13, on-time (+30); top factor: no prior defaults on record",
+          "delta": 30,
+          "timestamp": "2028-07-26T00:31:43Z"
+        }
+      ]
+    },
+    {
+      "address": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+      "name": "Hirer",
+      "score": 875,
+      "previous_score": 864,
+      "score_delta": 11,
+      "band": "excellent",
+      "previous_band": "excellent",
+      "required_collateral_bps": 2000,
+      "required_collateral_pct": "20%",
+      "previous_required_collateral_bps": 2000,
+      "previous_required_collateral_pct": "20%",
+      "top_factors": [
+        {
+          "feature": "account_age_days",
+          "value": 729,
+          "impact": 170,
+          "explanation": "Long-established account"
+        },
+        {
+          "feature": "on_time_payment_rate",
+          "value": 1,
+          "impact": 106,
+          "explanation": "Pays on time almost without exception"
+        },
+        {
+          "feature": "dispute_rate",
+          "value": 0,
+          "impact": 56,
+          "explanation": "No disputes on record"
+        }
+      ],
+      "recent_events": [
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 650,
+          "reason": "completed job #22, on-time (+11); top factor: long-established account",
+          "delta": 11,
+          "timestamp": "2028-09-18T07:23:08Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 420,
+          "reason": "completed job #21, on-time (+22); top factor: long-established account",
+          "delta": 22,
+          "timestamp": "2028-08-14T13:05:59Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 690,
+          "reason": "completed job #20, on-time (+21); top factor: long-established account",
+          "delta": 21,
+          "timestamp": "2028-07-10T18:48:51Z"
+        },
+        {
+          "type": "job_completed",
+          "job_id": null,
+          "value_usd": 250,
+          "reason": "completed job #19, on-time (+14); top factor: long-established account",
+          "delta": 14,
+          "timestamp": "2028-06-06T00:31:43Z"
+        }
+      ]
+    }
+  ]
+}
