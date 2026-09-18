@@ -34,6 +34,13 @@ def describe_event(outcome: Outcome, job_number: int) -> str:
     return f"payment default on {value} job"
 
 
+def event_type(outcome: Outcome) -> str:
+    """Machine-readable twin of describe_event, for the dashboard feed."""
+    if outcome.delivered:
+        return "dispute_won" if outcome.disputed else "job_completed"
+    return "dispute_lost" if outcome.disputed else "payment_default"
+
+
 def build_reason(outcome: Outcome, job_number: int, delta: int, top_factor: dict | None) -> str:
     reason = f"{describe_event(outcome, job_number)} ({delta:+d})"
     if top_factor:

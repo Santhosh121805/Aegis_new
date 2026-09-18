@@ -13,14 +13,17 @@ Usage:
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal
 
 import joblib
 import numpy as np
 import pandas as pd
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, ConfigDict, Field
 
 MODELS_DIR = Path(__file__).parent / "models"
 
@@ -276,6 +279,82 @@ class EventsScoreResponse(ScoreResponse):
     derived_features: AgentFeatures
 
 
+# ---------------------------------------------------------------------------
+# Dashboard state. docs/api_stub.json is a sample of AgentsStateResponse; a test keeps the two
+# identical in shape. Every field is ready to render: the dashboard computes nothing.
+# ---------------------------------------------------------------------------
+
+EventType = Literal["job_completed", "dispute_won", "dispute_lost", "payment_default"]
+
+
+class AgentEvent(BaseModel):
+    """One rescore, newest first in `recent_events`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    type: EventType
+    job_id: int | None = Field(
+        ..., description="Escrow job id. Null for history that never went through the escrow."
+    )
+    value_usd: float = Field(..., description="Whole dollars, not 6-decimal USDC units.")
+    reason: str = Field(..., description="The reason string written on-chain with the score.")
+    delta: int = Field(..., description="Signed points this event moved the score.")
+    timestamp: str = Field(..., description="Chain time of the outcome, ISO 8601 UTC.")
+
+
+class PublishedAgent(BaseModel):
+    """What the oracle knows about one agent. Pushed, never read from the chain here."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    address: str
+    name: str
+    score: int = Field(..., ge=MIN_SCORE, le=MAX_SCORE)
+    previous_score: int = Field(..., ge=MIN_SCORE, le=MAX_SCORE)
+    top_factors: list[Factor]
+    recent_events: list[AgentEvent]
+
+
+class OracleSnapshot(BaseModel):
+    """Body of PUT /internal/agents/state, sent by oracle/watcher.py."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    chain_id: int
+    block: int
+    agents: list[PublishedAgent]
+
+
+class AgentState(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    address: str
+    name: str
+    score: int
+    previous_score: int = Field(..., description="Score before the latest event; animate from here.")
+    score_delta: int
+    band: str
+    previous_band: str
+    required_collateral_bps: int
+    required_collateral_pct: str = Field(..., description='Ready to render, e.g. "20%".')
+    previous_required_collateral_bps: int
+    previous_required_collateral_pct: str
+    top_factors: list[Factor]
+    recent_events: list[AgentEvent]
+
+
+class AgentsStateResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: Literal["oracle", "stub"]
+    notice: str | None = Field(..., description="Human-readable warning to show, or null.")
+    oracle_live: bool = Field(..., description="False if the oracle has stopped reporting.")
+    updated_at: str | None = Field(..., description="Wall-clock time of the oracle's last report.")
+    chain_id: int | None
+    block: int | None
+    agents: list[AgentState]
+
+
 class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
@@ -403,6 +482,74 @@ def derive_features(request: EventsRequest) -> AgentFeatures:
 # API
 # ---------------------------------------------------------------------------
 
+def collateral_pct(bps: int) -> str:
+    return f"{bps / 100:g}%"
+
+
+# The oracle heartbeats every few seconds; silence longer than this means it has stopped.
+ORACLE_STALE_SECONDS = 10.0
+
+
+class _OracleState:
+    """Latest snapshot from the oracle. In memory only; the oracle re-sends it on a heartbeat,
+    so a restarted score service is repopulated within seconds."""
+
+    snapshot: OracleSnapshot | None = None
+    received_at: datetime | None = None
+    received_monotonic: float = 0.0
+
+
+ORACLE_STATE = _OracleState()
+
+
+def agent_state(agent: PublishedAgent) -> AgentState:
+    bps = required_collateral_bps(agent.score)
+    previous_bps = required_collateral_bps(agent.previous_score)
+    return AgentState(
+        address=agent.address,
+        name=agent.name,
+        score=agent.score,
+        previous_score=agent.previous_score,
+        score_delta=agent.score - agent.previous_score,
+        band=score_band(agent.score),
+        previous_band=score_band(agent.previous_score),
+        required_collateral_bps=bps,
+        required_collateral_pct=collateral_pct(bps),
+        previous_required_collateral_bps=previous_bps,
+        previous_required_collateral_pct=collateral_pct(previous_bps),
+        top_factors=agent.top_factors,
+        recent_events=agent.recent_events,
+    )
+
+
+def agents_state() -> AgentsStateResponse:
+    snapshot = ORACLE_STATE.snapshot
+    if snapshot is None:
+        return AgentsStateResponse(
+            source="oracle",
+            notice="No data from the oracle yet. Is oracle/watcher.py running?",
+            oracle_live=False,
+            updated_at=None,
+            chain_id=None,
+            block=None,
+            agents=[],
+        )
+
+    silent_for = time.monotonic() - ORACLE_STATE.received_monotonic
+    live = silent_for <= ORACLE_STALE_SECONDS
+    return AgentsStateResponse(
+        source="oracle",
+        notice=None if live else (
+            f"The oracle has not reported for {silent_for:.0f}s. Showing the last known state."
+        ),
+        oracle_live=live,
+        updated_at=ORACLE_STATE.received_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        chain_id=snapshot.chain_id,
+        block=snapshot.block,
+        agents=[agent_state(agent) for agent in snapshot.agents],
+    )
+
+
 app = FastAPI(
     title="AEGIS score service",
     description=(
@@ -411,6 +558,10 @@ app = FastAPI(
     ),
     version="0.1.0",
 )
+
+
+# The dashboard is a browser app on another port and polls GET /agents/state.
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -441,3 +592,21 @@ def score_from_events(request: EventsRequest) -> EventsScoreResponse:
     features = derive_features(request)
     result = score_agent(features, scoring_model)
     return EventsScoreResponse(**result.model_dump(), derived_features=features)
+
+
+@app.get("/agents/state", response_model=AgentsStateResponse)
+def get_agents_state() -> AgentsStateResponse:
+    """Everything the dashboard renders, for every agent the oracle knows about.
+
+    Served from the oracle's last pushed snapshot. No chain reads, no database. Poll it every
+    1-2s; the shape is fixed by docs/api_stub.json.
+    """
+    return agents_state()
+
+
+@app.put("/internal/agents/state", status_code=204)
+def put_agents_state(snapshot: OracleSnapshot) -> None:
+    """Called by oracle/watcher.py after every rescore and on a heartbeat. Not for the dashboard."""
+    ORACLE_STATE.snapshot = snapshot
+    ORACLE_STATE.received_at = datetime.now(timezone.utc)
+    ORACLE_STATE.received_monotonic = time.monotonic()

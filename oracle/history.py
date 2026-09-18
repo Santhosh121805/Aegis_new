@@ -29,6 +29,7 @@ class Outcome:
     timestamp: datetime
     block_number: int
     log_index: int
+    tx_hash: str
 
     @property
     def position(self) -> tuple[int, int]:

@@ -109,6 +109,13 @@ uvicorn app:app --reload        # http://127.0.0.1:8000/docs
 | `GET`  | `/health`            | Liveness plus whether the model is loaded.              |
 | `POST` | `/score`             | Score an agent from the seven features.                 |
 | `POST` | `/score/from-events` | Derive features from raw job events, then score.        |
+| `GET`  | `/agents/state`      | Everything the dashboard renders. Sample: [docs/api_stub.json](docs/api_stub.json). |
+| `PUT`  | `/internal/agents/state` | Oracle-only: pushes its in-memory state. Not for the dashboard. |
+
+`/agents/state` is served from the snapshot the oracle pushes after every rescore and on a 3s
+heartbeat. It makes no chain reads and needs no database; the dashboard must never touch web3.
+Band, collateral percentage and deltas are all computed server-side. A test keeps the live
+response identical in shape to `docs/api_stub.json`.
 
 `/score` returns the score, the band, the required collateral in basis points, the raw
 default probability, and `top_factors` — the three features that moved the score most,

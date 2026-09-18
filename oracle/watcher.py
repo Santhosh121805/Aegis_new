@@ -22,10 +22,12 @@ from datetime import datetime, timezone
 
 import requests
 from web3 import Web3
+from web3.logs import DISCARD
 
 from config import Config, ConfigError, load_config
 from history import History, Outcome
-from reasons import build_reason
+from publisher import RECENT_EVENTS, Board
+from reasons import build_reason, describe_event
 from writer import ScoreWriter
 
 log = logging.getLogger("oracle")
@@ -62,6 +64,13 @@ class Session:
         self.writer.verify_oracle()
 
         self.history = History()
+        self.board = Board(config.score_url, config.chain_id, config.names, self.writer.starting_score)
+        self.escrow = None
+        if config.escrow_address:
+            escrow_address = Web3.to_checksum_address(config.escrow_address)
+            if self.w3.eth.get_code(escrow_address) not in (b"", None):
+                self.escrow = self.w3.eth.contract(address=escrow_address, abi=config.escrow_abi)
+        self._job_ids: dict[str, int | None] = {}
         self._timestamps: dict[int, datetime] = {}
         self.last_block = -1
         self.last_block_hash: bytes | None = None
@@ -90,6 +99,7 @@ class Session:
                 timestamp=self._block_time(entry.blockNumber),
                 block_number=entry.blockNumber,
                 log_index=entry.logIndex,
+                tx_hash=Web3.to_hex(entry.transactionHash),
             )
             for entry in logs
         ]
@@ -106,20 +116,31 @@ class Session:
         if bytes(self.w3.eth.get_block(self.last_block).hash) != self.last_block_hash:
             raise ChainReset(f"block {self.last_block} changed hash")
 
+    def _job_id(self, outcome: Outcome) -> int | None:
+        """The escrow job behind an outcome: JobSettled in the same transaction. None for
+        outcomes recorded directly (seed history), which never went through the escrow."""
+        if self.escrow is None:
+            return None
+        if outcome.tx_hash not in self._job_ids:
+            receipt = self.w3.eth.get_transaction_receipt(outcome.tx_hash)
+            settled = self.escrow.events.JobSettled().process_receipt(receipt, errors=DISCARD)
+            self._job_ids[outcome.tx_hash] = settled[0].args.jobId if settled else None
+        return self._job_ids[outcome.tx_hash]
+
     # -- scoring ----------------------------------------------------------
 
-    def rescore(self, trigger: Outcome) -> None:
-        agent = trigger.agent
-
+    def _score(self, agent: str, as_of: datetime) -> dict:
         url = f"{self.config.score_url}/score/from-events"
         try:
-            response = requests.post(
-                url, json=self.history.score_request(agent, as_of=trigger.timestamp), timeout=10
-            )
+            response = requests.post(url, json=self.history.score_request(agent, as_of=as_of), timeout=10)
             response.raise_for_status()
         except requests.RequestException as exc:
             raise ScoreServiceError(f"{url}: {exc}") from exc
-        result = response.json()
+        return response.json()
+
+    def rescore(self, trigger: Outcome) -> None:
+        agent = trigger.agent
+        result = self._score(agent, as_of=trigger.timestamp)
 
         old_score = self.writer.current_score(agent)
         new_score = result["score"]
@@ -132,6 +153,8 @@ class Session:
         )
 
         tx_hash = self.writer.update_score(agent, new_score, reason)
+        self.board.record(trigger, old_score, new_score, reason, self._job_id(trigger), result["top_factors"])
+        self.board.publish()
 
         log.info("%s  %d -> %d  %s", agent, old_score, new_score, reason)
         log.info("    features %s", result["derived_features"])
@@ -146,9 +169,11 @@ class Session:
         for outcome in outcomes:
             self.history.add(outcome)
 
+        score_updates = self.registry.events.ScoreUpdated().get_logs(from_block=0, to_block=head)
         last_scored: dict[str, tuple[int, int]] = {}
-        for entry in self.registry.events.ScoreUpdated().get_logs(from_block=0, to_block=head):
+        for entry in score_updates:
             last_scored[entry.args.agent] = (entry.blockNumber, entry.logIndex)
+        self._rebuild_board(score_updates)
 
         stale = [
             self.history.outcomes(agent)[-1]
@@ -165,12 +190,60 @@ class Session:
             log.info("catching up %s (outcome at block %d never scored)", latest.agent, latest.block_number)
             self.rescore(latest)
 
+        # Replayed agents have scores and events but no factors yet; ask the model, write nothing.
+        for agent in self.board.missing_factors():
+            if self.history.outcomes(agent):
+                latest = self.history.outcomes(agent)[-1]
+                self.board.set_top_factors(agent, self._score(agent, as_of=latest.timestamp)["top_factors"])
+
         self._mark(head)
+        self.board.mark_block(head)
+        self.board.publish(force=True)
+
+    def _rebuild_board(self, score_updates) -> None:
+        """Dashboard state from logs replay already read, attributing each ScoreUpdated to the
+        outcome that triggered it.
+
+        Position alone is not enough: while the oracle works through a backlog, the update for
+        job #21 can land after job #22 was recorded. But the reason the oracle wrote on-chain
+        names its trigger ("completed job #21, ...", "lost dispute on $500 job ..."), so the
+        trigger is the earliest not-yet-attributed outcome whose description matches. A
+        catch-up rescore covers several outcomes at once; matching its trigger also retires
+        the older ones it covered.
+        """
+        by_agent: dict[str, list] = {}
+        for entry in score_updates:
+            by_agent.setdefault(entry.args.agent, []).append(entry)
+
+        for agent, entries in by_agent.items():
+            outcomes = self.history.outcomes(agent)
+            descriptions, delivered = [], 0
+            for outcome in outcomes:
+                delivered += outcome.delivered
+                descriptions.append(describe_event(outcome, job_number=delivered) + " (")
+
+            attributed: list[tuple[object, Outcome]] = []
+            floor = 0  # outcomes before this index are already attributed or covered
+            for entry in entries:
+                position = (entry.blockNumber, entry.logIndex)
+                candidates = [i for i in range(floor, len(outcomes)) if outcomes[i].position < position]
+                if not candidates:
+                    continue  # a score written with no outcome behind it (e.g. by hand)
+                matched = next((i for i in candidates if entry.args.reason.startswith(descriptions[i])),
+                               candidates[-1])
+                attributed.append((entry, outcomes[matched]))
+                floor = matched + 1
+
+            for entry, trigger in attributed[-RECENT_EVENTS:]:
+                self.board.record(
+                    trigger, entry.args.oldScore, entry.args.newScore, entry.args.reason, self._job_id(trigger)
+                )
 
     def poll_forever(self) -> None:
         log.info("Watching for OutcomeRecorded every %.1fs", self.config.poll_interval)
         while True:
             time.sleep(self.config.poll_interval)
+            self.board.publish()  # no-op unless something changed or the heartbeat is due
             head = self.w3.eth.block_number
             self._check_same_chain(head)
             if head == self.last_block:
@@ -183,6 +256,7 @@ class Session:
             # Mark only what was scanned. Our own updateScore blocks get rescanned next tick,
             # harmlessly; marking the newer head could skip an outcome that landed meanwhile.
             self._mark(head)
+            self.board.mark_block(head)
 
 
 def main() -> None:
