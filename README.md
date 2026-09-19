@@ -51,4 +51,8 @@ Live dashboard: <http://localhost:5173/dashboard>
 
 Solidity · Foundry · Python · FastAPI · scikit-learn · web3.py · React · Vite
 
+## Presented to you by <3
+
+Charithra G | Santhosh S | Sharmily H
+
 <sub>The model is trained on synthetic data and the demo agents are scripts; the contracts, oracle and scoring are real. Full design in <a href="SPEC.md">SPEC.md</a>.</sub>
