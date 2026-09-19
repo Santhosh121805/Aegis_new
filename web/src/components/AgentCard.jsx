@@ -52,6 +52,19 @@ export default function AgentCard({ agent, position, total }) {
             <span className="muted-small">was {agent.previous_band}</span>
           )}
         </div>
+        {(agent.risk_flags ?? []).length > 0 && (
+          // Advisory only: the score and collateral above are unaffected.
+          <ul className="risk-flags">
+            {agent.risk_flags.map((flag) => (
+              <li key={flag.kind} className={`risk-flag risk-${flag.level}`} title={flag.reason}>
+                <span className="risk-pill">
+                  {flag.level === "alert" ? "Alert" : "Watch"} / {flag.label}
+                </span>
+                <span className="risk-reason">{flag.reason}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div>

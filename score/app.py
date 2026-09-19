@@ -328,6 +328,20 @@ class PublishedAgent(BaseModel):
     recent_events: list[AgentEvent]
 
 
+class JobRecord(BaseModel):
+    """One escrow job as its events report it. Raw facts only; risk flags are derived here."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    job_id: int
+    hirer: str
+    worker: str
+    value_usd: float
+    created_at: str = Field(..., description="Chain time of JobCreated, ISO 8601 UTC.")
+    disputed: bool = False
+    settled: bool = False
+
+
 class OracleSnapshot(BaseModel):
     """Body of PUT /internal/agents/state, sent by oracle/watcher.py."""
 
@@ -336,6 +350,18 @@ class OracleSnapshot(BaseModel):
     chain_id: int
     block: int
     agents: list[PublishedAgent]
+    jobs: list[JobRecord] = Field(default_factory=list, description="Escrow jobs, for risk flags only.")
+
+
+class RiskFlag(BaseModel):
+    """ADVISORY. Shown beside the score; never changes the score or the collateral."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["dispute_burst", "serial_disputer", "closed_ring"]
+    level: Literal["watch", "alert"]
+    label: str
+    reason: str
 
 
 class AgentState(BaseModel):
@@ -354,6 +380,9 @@ class AgentState(BaseModel):
     previous_required_collateral_pct: str
     top_factors: list[Factor]
     recent_events: list[AgentEvent]
+    risk_flags: list[RiskFlag] = Field(
+        ..., description="Advisory signals. Empty means none. Never affect score or collateral."
+    )
 
 
 class AgentsStateResponse(BaseModel):
@@ -525,7 +554,112 @@ class _OracleState:
 ORACLE_STATE = _OracleState()
 
 
-def agent_state(agent: PublishedAgent) -> AgentState:
+# ---------------------------------------------------------------------------
+# Risk flags. ADVISORY and read-only: computed from escrow job facts the oracle forwards, shown
+# beside the score, and never fed into the score, the features or the collateral.
+# Counterparties exist only for escrow jobs (JobCreated names hirer and worker). Seeded history
+# was recorded straight to the Registry and has none, so it is invisible here.
+# ---------------------------------------------------------------------------
+
+BURST_WINDOW_SECONDS = 3600
+SERIAL_MIN_HIRES = 5
+SERIAL_WATCH_MULTIPLE, SERIAL_ALERT_MULTIPLE = 3.0, 5.0
+RING_MIN_JOBS, RING_MIN_SIZE, RING_INSIDE_SHARE = 3, 3, 0.8
+
+
+def population_dispute_rate() -> float:
+    """Mean dispute rate of the model's training population (the scaler's fitted mean)."""
+    if SCORING_MODEL is None:
+        return 0.07
+    return float(SCORING_MODEL.scaler.mean_[SCORING_MODEL.feature_names.index("dispute_rate")])
+
+
+def _when(job: JobRecord) -> datetime:
+    return datetime.fromisoformat(job.created_at.replace("Z", "+00:00"))
+
+
+def dispute_burst(agent: str, jobs: list[JobRecord]) -> RiskFlag | None:
+    """Many disputes against one worker in a short window, relative to its own earlier record."""
+    mine = [j for j in jobs if j.worker.lower() == agent.lower()]
+    if not mine:
+        return None
+    latest = max(_when(j) for j in jobs)
+    recent = [j for j in mine if (latest - _when(j)).total_seconds() <= BURST_WINDOW_SECONDS]
+    earlier = [j for j in mine if j not in recent]
+    disputes = sum(j.disputed for j in recent)
+    if disputes < 2 or disputes / len(recent) < 0.5:
+        return None
+    earlier_rate = sum(j.disputed for j in earlier) / len(earlier) if earlier else 0.0
+    if disputes / len(recent) < 2 * earlier_rate + 0.25:
+        return None  # consistently disputed, not a burst: the score already carries it
+    level = "alert" if disputes >= 3 else "watch"
+    return RiskFlag(
+        kind="dispute_burst", level=level, label="Dispute burst",
+        reason=f"{disputes} of its last {len(recent)} jobs disputed within an hour, against "
+               f"{earlier_rate:.0%} before. Possible griefing by hirers; worth a look before trusting the drop.",
+    )
+
+
+def serial_disputer(agent: str, jobs: list[JobRecord]) -> RiskFlag | None:
+    """A hirer whose dispute rate is far above the population's."""
+    hires = [j for j in jobs if j.hirer.lower() == agent.lower() and (j.disputed or j.settled)]
+    if len(hires) < SERIAL_MIN_HIRES:
+        return None
+    rate, population = sum(j.disputed for j in hires) / len(hires), population_dispute_rate()
+    if rate < SERIAL_WATCH_MULTIPLE * population:
+        return None
+    level = "alert" if rate >= SERIAL_ALERT_MULTIPLE * population else "watch"
+    return RiskFlag(
+        kind="serial_disputer", level=level, label="Serial disputer",
+        reason=f"Disputed {rate:.0%} of its {len(hires)} hires, against a {population:.0%} "
+               f"population average. Disputes cost a hirer nothing, so this one may be avoiding payment.",
+    )
+
+
+def closed_rings(jobs: list[JobRecord]) -> list[set[str]]:
+    """Groups of RING_MIN_SIZE+ agents that each do RING_INSIDE_SHARE of their escrow jobs with
+    one another. Peel off agents that trade mostly outside the group until it is stable."""
+    partners: dict[str, list[str]] = {}
+    for j in jobs:
+        h, w = j.hirer.lower(), j.worker.lower()
+        partners.setdefault(h, []).append(w)
+        partners.setdefault(w, []).append(h)
+    group = {a for a, p in partners.items() if len(p) >= RING_MIN_JOBS}
+    while True:
+        keep = {a for a in group if sum(p in group for p in partners[a]) / len(partners[a]) >= RING_INSIDE_SHARE}
+        if keep == group:
+            break
+        group = keep
+    rings, seen = [], set()
+    for start in group:
+        if start in seen:
+            continue
+        component, stack = set(), [start]
+        while stack:
+            node = stack.pop()
+            if node in component:
+                continue
+            component.add(node)
+            stack.extend(p for p in partners[node] if p in group)
+        seen |= component
+        if len(component) >= RING_MIN_SIZE:
+            rings.append(component)
+    return rings
+
+
+def risk_flags(agent: str, jobs: list[JobRecord]) -> list[RiskFlag]:
+    flags = [f for f in (dispute_burst(agent, jobs), serial_disputer(agent, jobs)) if f]
+    for ring in closed_rings(jobs):
+        if agent.lower() in ring:
+            flags.append(RiskFlag(
+                kind="closed_ring", level="watch", label="Closed ring",
+                reason=f"Does most of its work inside a group of {len(ring)} agents that mostly "
+                       "transact with each other. Scores built this way may be self-dealt.",
+            ))
+    return flags
+
+
+def agent_state(agent: PublishedAgent, jobs: list[JobRecord] | None = None) -> AgentState:
     bps = required_collateral_bps(agent.score)
     previous_bps = required_collateral_bps(agent.previous_score)
     return AgentState(
@@ -542,6 +676,7 @@ def agent_state(agent: PublishedAgent) -> AgentState:
         previous_required_collateral_pct=collateral_pct(previous_bps),
         top_factors=agent.top_factors,
         recent_events=agent.recent_events,
+        risk_flags=risk_flags(agent.address, jobs or []),
     )
 
 
@@ -569,7 +704,7 @@ def agents_state() -> AgentsStateResponse:
         updated_at=ORACLE_STATE.received_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
         chain_id=snapshot.chain_id,
         block=snapshot.block,
-        agents=[agent_state(agent) for agent in snapshot.agents],
+        agents=[agent_state(agent, snapshot.jobs) for agent in snapshot.agents],
     )
 
 

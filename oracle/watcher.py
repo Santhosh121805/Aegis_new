@@ -71,6 +71,8 @@ class Session:
             if self.w3.eth.get_code(escrow_address) not in (b"", None):
                 self.escrow = self.w3.eth.contract(address=escrow_address, abi=config.escrow_abi)
         self._job_ids: dict[str, int | None] = {}
+        # Escrow job facts, forwarded for the score service's advisory risk flags only.
+        self.jobs: dict[int, dict] = {}
         self._timestamps: dict[int, datetime] = {}
         self.last_block = -1
         self.last_block_hash: bytes | None = None
@@ -126,6 +128,34 @@ class Session:
             settled = self.escrow.events.JobSettled().process_receipt(receipt, errors=DISCARD)
             self._job_ids[outcome.tx_hash] = settled[0].args.jobId if settled else None
         return self._job_ids[outcome.tx_hash]
+
+    def _scan_jobs(self, from_block: int, to_block: int) -> None:
+        """Record escrow jobs (hirer, worker, disputed, settled) for the risk flags. Never
+        raises: a failure here must not stop scores being written."""
+        if self.escrow is None:
+            return
+        try:
+            events = self.escrow.events
+            for entry in events.JobCreated().get_logs(from_block=from_block, to_block=to_block):
+                self.jobs[entry.args.jobId] = {
+                    "job_id": entry.args.jobId,
+                    "hirer": entry.args.hirer,
+                    "worker": entry.args.worker,
+                    "value_usd": entry.args.value / 10**self.config.value_decimals,
+                    "created_at": self._block_time(entry.blockNumber).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "disputed": False,
+                    "settled": False,
+                }
+            for entry in events.JobDisputed().get_logs(from_block=from_block, to_block=to_block):
+                if entry.args.jobId in self.jobs:
+                    self.jobs[entry.args.jobId]["disputed"] = True
+            for entry in events.JobSettled().get_logs(from_block=from_block, to_block=to_block):
+                if entry.args.jobId in self.jobs:
+                    self.jobs[entry.args.jobId]["settled"] = True
+        except Exception as exc:  # noqa: BLE001 -- advisory data only
+            log.warning("Could not read escrow jobs for risk flags: %s", exc)
+            return
+        self.board.set_jobs(list(self.jobs.values()))
 
     # -- scoring ----------------------------------------------------------
 
@@ -197,6 +227,7 @@ class Session:
                 latest = self.history.outcomes(agent)[-1]
                 self.board.set_top_factors(agent, self._score(agent, as_of=latest.timestamp)["top_factors"])
 
+        self._scan_jobs(0, head)
         self._mark(head)
         self.board.mark_block(head)
         self.board.publish(force=True)
@@ -253,6 +284,8 @@ class Session:
             for outcome in self._outcomes(self.last_block + 1, head):
                 self.history.add(outcome)
                 self.rescore(outcome)
+
+            self._scan_jobs(self.last_block + 1, head)
 
             # Mark only what was scanned. Our own updateScore blocks get rescanned next tick,
             # harmlessly; marking the newer head could skip an outcome that landed meanwhile.

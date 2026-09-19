@@ -45,6 +45,7 @@ class Board:
         self.names = names
         self.starting_score = starting_score
         self.cards: dict[str, AgentCard] = {}
+        self.jobs: list[dict] = []  # escrow job facts, for advisory risk flags only
         self.block = 0
         self._dirty = True
         self._last_push = 0.0
@@ -86,6 +87,11 @@ class Board:
         self._card(agent).top_factors = top_factors
         self._dirty = True
 
+    def set_jobs(self, jobs: list[dict]) -> None:
+        if jobs != self.jobs:
+            self.jobs = jobs
+            self._dirty = True
+
     def missing_factors(self) -> list[str]:
         return [agent for agent, card in self.cards.items() if not card.top_factors]
 
@@ -111,6 +117,7 @@ class Board:
                 }
                 for card in (self.cards[a] for a in order)
             ],
+            "jobs": self.jobs,
         }
 
     def publish(self, force: bool = False) -> None:

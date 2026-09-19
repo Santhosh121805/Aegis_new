@@ -1085,6 +1085,43 @@ dd {
   margin-top: var(--u);
 }
 
+/* Advisory risk flags: muted, never louder than the score. Amber = watch, red = alert. */
+.risk-flags {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 0.75);
+  margin: var(--u) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.risk-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font: 500 10px/1.5 var(--mono);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+.risk-reason {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-3);
+}
+
+.risk-watch .risk-pill {
+  color: var(--warning);
+}
+
+.risk-alert .risk-pill {
+  color: var(--danger);
+}
+
 .collateral-value {
   margin-top: 4px;
   font-size: 16px;

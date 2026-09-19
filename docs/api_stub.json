@@ -119,7 +119,8 @@
           "delta": 7,
           "timestamp": "2026-09-18T19:09:06Z"
         }
-      ]
+      ],
+      "risk_flags": []
     },
     {
       "address": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
@@ -234,7 +235,8 @@
           "delta": 3,
           "timestamp": "2026-09-18T19:09:08Z"
         }
-      ]
+      ],
+      "risk_flags": []
     },
     {
       "address": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
@@ -349,7 +351,8 @@
           "delta": 10,
           "timestamp": "2026-09-18T19:09:06Z"
         }
-      ]
+      ],
+      "risk_flags": []
     }
   ]
 }

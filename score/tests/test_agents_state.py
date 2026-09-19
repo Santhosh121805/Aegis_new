@@ -73,6 +73,8 @@ def assert_same_shape(live, stub, path: str = "$") -> None:
         for key in stub:
             assert_same_shape(live[key], stub[key], f"{path}.{key}")
     elif isinstance(stub, list):
+        if not live and not stub:
+            return  # e.g. risk_flags: empty is the normal state on both sides
         assert live and stub, f"{path}: need a non-empty list on both sides to compare"
         for i, item in enumerate(live):
             assert_same_shape(item, stub[0], f"{path}[{i}]")
@@ -181,3 +183,57 @@ def test_chain_mode_scores_current_profiles_without_events(tmp_path, monkeypatch
         [AgentEvent(**e) for e in agent["recent_events"] if e["job_id"] is None] for agent in STUB["agents"]]
     assert all(e.job_id is None for a in state.agents for e in a.recent_events)
     assert "lost dispute" not in " ".join(e.reason for a in state.agents for e in a.recent_events)
+
+
+# ---------------------------------------------------------------------------
+# Risk flags: advisory, from escrow job facts only
+# ---------------------------------------------------------------------------
+
+HIRER, HONEST, SLOPPY = "0x" + "a" * 40, "0x" + "b" * 40, "0x" + "c" * 40
+
+
+def _job(n, hirer, worker, disputed=False, minute=0):
+    return score_app.JobRecord(job_id=n, hirer=hirer, worker=worker, value_usd=500.0,
+                               created_at=f"2026-09-19T10:{minute:02d}:00Z", disputed=disputed, settled=True)
+
+
+def _demo_jobs(parallel=False, swarm=False):
+    jobs = [_job(1, HIRER, HONEST), _job(2, HIRER, SLOPPY, disputed=True, minute=1)]
+    if parallel:
+        jobs += [_job(3 + i, HIRER, HONEST, minute=2) for i in range(5)]
+    if swarm:
+        jobs += [_job(8 + i, "0x" + f"{i + 1:040x}", HONEST, minute=3) for i in range(5)]
+    return jobs
+
+
+@pytest.mark.parametrize("parallel,swarm", [(False, False), (True, False), (True, True)])
+def test_no_flag_fires_on_the_demo(parallel, swarm):
+    jobs = _demo_jobs(parallel, swarm)
+    for agent in (HIRER, HONEST, SLOPPY):
+        assert score_app.risk_flags(agent, jobs) == []
+
+
+def test_dispute_burst_flags_a_griefed_worker():
+    jobs = [_job(1, HIRER, HONEST)] + [_job(2 + i, "0x" + f"{i + 1:040x}", HONEST, disputed=True, minute=5) for i in range(3)]
+    [flag] = score_app.risk_flags(HONEST, jobs)
+    assert (flag.kind, flag.level) == ("dispute_burst", "alert")
+
+
+def test_serial_disputer_flags_a_hirer_that_disputes_everything():
+    jobs = [_job(i, HIRER, "0x" + f"{i:040x}", disputed=i % 2 == 0) for i in range(1, 7)]
+    flags = {f.kind: f.level for f in score_app.risk_flags(HIRER, jobs)}
+    assert flags == {"serial_disputer": "alert"}
+
+
+def test_closed_ring_flags_agents_that_only_trade_with_each_other():
+    ring = [HIRER, HONEST, SLOPPY]
+    jobs = [_job(n, ring[n % 3], ring[(n + 1) % 3]) for n in range(9)]
+    assert all([f.kind for f in score_app.risk_flags(a, jobs)] == ["closed_ring"] for a in ring)
+
+
+def test_flags_never_change_the_score():
+    snapshot = _published_from_stub()
+    snapshot["jobs"] = [j.model_dump() for j in [_job(i, HIRER, "0x" + f"{i:040x}", disputed=True) for i in range(1, 7)]]
+    assert client.put("/internal/agents/state", json=snapshot).status_code == 204
+    live = client.get("/agents/state").json()
+    assert [a["score"] for a in live["agents"]] == [a["score"] for a in STUB["agents"]]
