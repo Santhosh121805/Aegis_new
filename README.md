@@ -37,7 +37,7 @@ When the CONTROL window says **READY**, type:
 | `swarm` | 5 unknown hirers at once, each posting 100% |
 | `reset` | Fresh chain, back to 864 / 613 / 877 |
 
-Live dashboard: <http://localhost:5173/dashboard>
+Live : https://aegis-web-39hu.onrender.com/
 
 ## Deployed on Base Sepolia
 
