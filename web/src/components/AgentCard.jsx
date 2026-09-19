@@ -68,7 +68,7 @@ export default function AgentCard({ agent, position, total }) {
       </div>
 
       <div>
-        <MicroLabel>Collateral upfront</MicroLabel>
+        <MicroLabel>Deposit upfront</MicroLabel>
         <div className="mono-value collateral-value">
           [<Crossfade value={agent.required_collateral_pct} render={(pct) => pct} />
           {collateralMoved ? ` / was ${agent.previous_required_collateral_pct}` : ""}]

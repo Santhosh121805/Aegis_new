@@ -111,7 +111,7 @@ function global:menu {
     Write-Host "  honest      " -ForegroundColor Yellow -NoNewline; Write-Host "HonestAgent does a `$500 job   -> hirer posts 20%, score +7"
     Write-Host "  sloppy      " -ForegroundColor Yellow -NoNewline; Write-Host "SloppyAgent cheats, disputed   -> 613 to 382, 40% to 100%"
     Write-Host "  multi       " -ForegroundColor Yellow -NoNewline; Write-Host "Hirer opens 5 jobs at once with HonestAgent (after honest/sloppy)"
-    Write-Host "  swarm       " -ForegroundColor Yellow -NoNewline; Write-Host "5 unknown hirers hire HonestAgent at once, 100% collateral"
+    Write-Host "  swarm       " -ForegroundColor Yellow -NoNewline; Write-Host "5 unknown hirers hire HonestAgent at once, 100% deposit"
     Write-Host "  dashboard   " -ForegroundColor Yellow -NoNewline; Write-Host "open the live dashboard again"
     Write-Host "  reset       " -ForegroundColor Yellow -NoNewline; Write-Host "fresh chain + fresh seed (before each full run-through)"
     Write-Host "  menu        " -ForegroundColor Yellow -NoNewline; Write-Host "show this list again"

@@ -64,8 +64,8 @@ def fail_if_hirer_defaulted(registry, settle_receipt, hirer: str, defaults_befor
             f"  OutcomeRecorded(hirer, delivered=false) in settle tx: {len(hirer_defaults)}",
             f"  hirer defaults counter: {defaults_before} -> {defaults_after}",
             "The escrow could not draw the remainder of the job value from the hirer (allowance",
-            "or balance too low), paid the worker only the collateral, and blamed the hirer.",
-            "Its score will decay run over run and the 20% collateral headline will disappear.",
+            "or balance too low), paid the worker only the deposit, and blamed the hirer.",
+            "Its score will decay run over run and the 20% deposit headline will disappear.",
             banner,
         ]))
 
@@ -178,7 +178,7 @@ def main() -> int:
     bps_after = registry.functions.requiredCollateralBps(worker).call()
     print()
     print(f"{args.worker} credit score {rescored.args.oldScore} -> {rescored.args.newScore}")
-    print(f"  collateral required: {bps_before // 100}% -> {bps_after // 100}% upfront")
+    print(f"  deposit required: {bps_before // 100}% -> {bps_after // 100}% upfront")
     print(f"  reason: {rescored.args.reason}")
     return 0
 

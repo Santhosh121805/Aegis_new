@@ -50,7 +50,7 @@ class Worker:
         profile = self.registry.functions.getProfile(self.account.address).call()
         bps = self.registry.functions.requiredCollateralBps(self.account.address).call()
         score = profile[1] if profile[6] else "unscored"
-        return f"score {score}, {BAND_BY_BPS[bps]}, {bps // 100}% collateral"
+        return f"score {score}, {BAND_BY_BPS[bps]}, {bps // 100}% deposit"
 
     def _logs(self, event, start: int, end: int, **filters):
         return event().get_logs(from_block=start, to_block=end, argument_filters=filters or None)

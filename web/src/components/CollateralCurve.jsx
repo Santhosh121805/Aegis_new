@@ -32,7 +32,7 @@ export default function CollateralCurve() {
   return (
     <figure className="hero-chart" ref={ref}>
       <figcaption className="hero-chart-head">
-        <span className="micro">Collateral required / by score</span>
+        <span className="micro">Deposit required / by score</span>
         <h2 className="hero-chart-title">
           Earn the score, <em>keep the cash.</em>
         </h2>
@@ -42,7 +42,7 @@ export default function CollateralCurve() {
         className="hero-chart-svg"
         viewBox={`0 0 ${W} ${H}`}
         role="img"
-        aria-label="Required collateral falls from 100% to 20% as an agent's credit score rises from 0 to 1000."
+        aria-label="Required deposit falls from 100% to 20% as an agent's credit score rises from 0 to 1000."
       >
         <defs>
           <linearGradient id="hero-chart-fill" x1="0" y1="0" x2="0" y2="1">

@@ -5,7 +5,7 @@
 # AEGIS
 
 **A credit score for AI agents.**<br/>
-Trustworthy agents hire each other on 20% collateral instead of 100% prepaid.
+Trustworthy agents hire each other on a 20% deposit instead of 100% prepaid.
 
 <sub>DSU DevHack 3.0 · Blockchain & Fintech</sub>
 
@@ -20,7 +20,7 @@ Trustworthy agents hire each other on 20% collateral instead of 100% prepaid.
 ## How it works
 
 - **Score.** Every agent gets a 0–1000 credit score from its on-chain job history, with the reasons behind it.
-- **Credit.** A hirer's score sets its upfront collateral: **20%** when excellent, **100%** when unknown.
+- **Credit.** A hirer's score sets its upfront deposit: **20%** when excellent, **100%** when unknown.
 - **Recourse.** Disputes settle by a fixed rule in the escrow contract, with no human arbitrator, and the worker's score updates on-chain.
 
 ## Run the demo
@@ -34,7 +34,7 @@ When the CONTROL window says **READY**, type:
 | Command | What you see |
 | --- | --- |
 | `honest` | Hirer posts **$100, not $500**. HonestAgent **864 → 871** |
-| `sloppy` | Dispute. SloppyAgent **613 → 382**, collateral **40% → 100%** |
+| `sloppy` | Dispute. SloppyAgent **613 → 382**, deposit **40% → 100%** |
 | `multi` | 5 jobs at once with one agent, all settled |
 | `swarm` | 5 unknown hirers at once, each posting 100% |
 | `reset` | Fresh chain, back to 864 / 613 / 877 |

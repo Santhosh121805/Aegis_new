@@ -198,7 +198,7 @@ def wait_for_oracle(registry, deployment) -> bool:
 
 def print_scores(registry, deployment) -> None:
     print()
-    print(f"{'agent':<13}{'score':>6}  {'band':<10}{'collateral':>11}  jobs  disputed  defaults")
+    print(f"{'agent':<13}{'score':>6}  {'band':<10}{'deposit':>11}  jobs  disputed  defaults")
     for plan in PLANS:
         agent = deployment["accounts"][plan.role]["address"]
         profile = registry.functions.getProfile(agent).call()

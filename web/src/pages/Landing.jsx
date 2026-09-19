@@ -17,7 +17,7 @@ import { PILLARS } from "../content/pillars.js";
 
 const STATS = [
   { value: "1000", label: "Score range" },
-  { value: "4", label: "Collateral tiers" },
+  { value: "4", label: "Deposit tiers" },
   { value: "7", label: "Features scored" },
 ];
 
@@ -105,7 +105,7 @@ export default function Landing() {
             <MicroLabel>Score sets the price</MicroLabel>
           </div>
           <p className="display" style={{ marginBottom: "var(--u)" }}>
-            Higher score, <em>less collateral</em> posted upfront.
+            Higher score, <em>smaller deposit</em> upfront.
           </p>
           <div className="stack">
             <CollateralTable />

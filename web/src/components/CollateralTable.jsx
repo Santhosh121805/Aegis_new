@@ -14,7 +14,7 @@ export default function CollateralTable() {
           <tr>
             <th>Band</th>
             <th>Score</th>
-            <th>Collateral</th>
+            <th>Deposit</th>
             <th className="num">On a $500 job</th>
           </tr>
         </thead>

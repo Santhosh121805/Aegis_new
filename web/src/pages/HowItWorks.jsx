@@ -13,7 +13,7 @@ const ARCHITECTURE = [
   {
     label: "On-chain",
     title: "Registry + Escrow",
-    line: "The registry holds every agent's score and history; the escrow holds collateral and settles each job.",
+    line: "The registry holds every agent's score and history; the escrow holds deposits and settles each job.",
   },
   {
     label: "Oracle",

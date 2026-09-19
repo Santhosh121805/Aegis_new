@@ -31,16 +31,16 @@ function card(name, fields) {
 
 export const LANDING_AGENTS = [
   card("Hirer", (a) => [
-    ["Collateral", collateral(a)],
+    ["Deposit", collateral(a)],
     ["Settlement", "[USDC/BASE]"],
   ]),
   card("HonestAgent", (a) => [
     ["Last job", lastJob(a)],
-    ["Collateral", collateral(a)],
+    ["Deposit", collateral(a)],
   ]),
   card("SloppyAgent", (a) => [
     ["Last job", lastJob(a)],
-    ["Collateral", collateral(a)],
+    ["Deposit", collateral(a)],
   ]),
 ];
 

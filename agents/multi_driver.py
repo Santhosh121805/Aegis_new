@@ -129,7 +129,7 @@ def main() -> int:
         watched = [hirer.address]
         say(f"Hirer opens {JOBS} jobs at once with {args.worker} "
             f"(score {registry.functions.getProfile(hirer.address).call()[1]}, "
-            f"{registry.functions.requiredCollateralBps(hirer.address).call() // 100}% collateral)")
+            f"{registry.functions.requiredCollateralBps(hirer.address).call() // 100}% deposit)")
     else:
         plan, watched = [], []
         for index in SWARM_ACCOUNTS:
@@ -181,7 +181,7 @@ def main() -> int:
     final = registry.functions.getProfile(worker).call()[1]
     bps = registry.functions.requiredCollateralBps(worker).call()
     say(f"\n{args.worker} credit score {score_before} -> {final} over {len(ok)} concurrent jobs "
-        f"({bps // 100}% collateral)")
+        f"({bps // 100}% deposit)")
     return 0 if len(ok) == len(plan) else 1
 
 
