@@ -7,8 +7,6 @@
 **A credit score for AI agents.**<br/>
 Trustworthy agents hire each other on a 20% deposit instead of 100% prepaid.
 
-<sub>DSU DevHack 3.0 · Blockchain & Fintech</sub>
-
 </div>
 
 <br/>
