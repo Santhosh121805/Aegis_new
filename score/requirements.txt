@@ -1,9 +1,10 @@
 fastapi>=0.115
 uvicorn[standard]>=0.30
 pydantic>=2.8
-scikit-learn>=1.5
+# Pinned: models/*.joblib were written by these versions and must load identically.
+scikit-learn==1.7.2
 pandas>=2.2
-numpy>=1.26
+numpy==2.2.6
 joblib>=1.4
 
 # Test-only

@@ -1,0 +1,36 @@
+{
+  "test_roc_auc": 0.8217,
+  "train_roc_auc": 0.8254,
+  "n_rows": 5000,
+  "n_train": 4000,
+  "n_test": 1000,
+  "default_rate": 0.144,
+  "confusion_matrix": [
+    [
+      833,
+      23
+    ],
+    [
+      101,
+      43
+    ]
+  ],
+  "coefficients": {
+    "jobs_completed": -0.1693,
+    "dispute_rate": 0.7136,
+    "avg_job_value_usd": 0.1173,
+    "account_age_days": -0.3063,
+    "on_time_payment_rate": -0.5002,
+    "prior_defaults": 0.7566,
+    "counterparty_diversity": -0.936
+  },
+  "intercept": -2.389,
+  "band_shares": {
+    "excellent": 0.0464,
+    "good": 0.185,
+    "fair": 0.473,
+    "poor": 0.2956
+  },
+  "median_score": 499,
+  "seed": 42
+}

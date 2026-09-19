@@ -1,0 +1,9 @@
+[
+  "jobs_completed",
+  "dispute_rate",
+  "avg_job_value_usd",
+  "account_age_days",
+  "on_time_payment_rate",
+  "prior_defaults",
+  "counterparty_diversity"
+]
