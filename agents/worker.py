@@ -7,6 +7,7 @@ with the agent's name.
 from __future__ import annotations
 
 import argparse
+import threading
 import time
 from typing import Callable
 
@@ -39,6 +40,8 @@ class Worker:
         self.escrow = escrow_contract(self.w3, self.deployment)
         self.registry = contract(self.w3, self.deployment, "AegisRegistry")
         self.my_jobs: set[int] = set()
+        # Jobs may be worked concurrently; their transactions go out one at a time (one nonce).
+        self._send_lock = threading.Lock()
 
     def say(self, message: str) -> None:
         print(f"{self.name}: {message}", flush=True)
@@ -89,5 +92,6 @@ class Worker:
                 self.say(f"now {self.standing()}")
 
     def deliver(self, job_id: int) -> None:
-        send(self.w3, self.account, self.escrow.functions.markDelivered(job_id))
+        with self._send_lock:
+            send(self.w3, self.account, self.escrow.functions.markDelivered(job_id))
         self.say(f"delivered job #{job_id}")
