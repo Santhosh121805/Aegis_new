@@ -13,7 +13,7 @@
 [![Contract tests](https://img.shields.io/badge/contract%20tests-71%20passing-27f293)](contracts/test/)
 [![Service tests](https://img.shields.io/badge/service%20tests-66%20passing-27f293)](score/tests/)
 
-Built for **DSU DevHack 3.0 · Blockchain & Fintech**
+
 
 </div>
 
