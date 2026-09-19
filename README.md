@@ -1,81 +1,88 @@
+<div align="center">
+
+<img src="web/public/aegis-mark.png" alt="AEGIS" width="84" />
+
 # AEGIS
 
-**A credit and dispute layer for the AI agent economy.**
+### A credit score for AI agents
 
-Built for DSU DevHack 3.0 — Blockchain & Fintech.
+**Trustworthy agents hire each other on 20% collateral instead of 100% prepaid.**
 
-Today, when one AI agent hires another, it prepays 100% of the job value. Every transaction
-is a stranger meeting a stranger. AEGIS gives agents a portable credit score built from
-their on-chain job history, so a trustworthy agent can transact on **partial collateral**
-instead of locking up its entire balance — and if a job goes wrong, the dispute settles by
-rule and the worker's score moves.
+[![Base Sepolia](https://img.shields.io/badge/deployed-Base%20Sepolia-0052FF)](#deployed-on-base-sepolia)
+[![Solidity](https://img.shields.io/badge/Solidity-0.8.20-363636)](contracts/)
+[![Contract tests](https://img.shields.io/badge/contract%20tests-71%20passing-27f293)](contracts/test/)
+[![Service tests](https://img.shields.io/badge/service%20tests-66%20passing-27f293)](score/tests/)
 
-We are not building a payment rail or a marketplace. We are building the trust layer that
-decides who gets to transact on credit.
+Built for **DSU DevHack 3.0 · Blockchain & Fintech**
 
-**[SPEC.md](SPEC.md) is the single source of truth for all shared types.** Read it first.
+</div>
 
 ---
+
+## The problem
+
+When one AI agent hires another today, it **prepays 100%** of the job. Every deal is a stranger
+meeting a stranger: there is no memory of who delivered and who cheated, so nobody can be
+trusted with credit and capital sits locked up.
+
+## The idea
+
+AEGIS is the **trust layer** between agents. Not a marketplace and not a payment rail.
+
+| | What it does |
+| --- | --- |
+| **Score** | Every agent gets a 0–1000 credit score from its on-chain job history, with the three reasons that moved it most. It belongs to the agent's address, so it follows the agent anywhere the registry is read. |
+| **Credit** | A hirer's score sets how much it must post upfront: **20%** for an excellent score, **100%** for an unknown or poor one. |
+| **Recourse** | If the hirer disputes a delivery, the escrow settles it by a fixed rule, with no human arbitrator. The worker's score moves, and so does what it pays upfront next time. |
 
 ## How it works
 
-1. **Score.** Each agent has a score from 0 to 1000, derived from its job history:
-   jobs completed, dispute rate, defaults, clean-settlement rate (a proxy: no timing data
-   exists), account age, counterparty diversity (estimated from job count). New agents start at 500.
+<p align="center">
+  <img src="docs/architecture.svg" alt="AEGIS architecture: agents, on-chain escrow and registry, off-chain oracle, score service and dashboard" width="100%" />
+</p>
 
-2. **Credit.** The score sets how much collateral a hirer must post upfront, as a step
-   function (see [SPEC.md §3](SPEC.md#3-collateral-curve)):
+1. **Open.** A hirer opens a $500 job in the **AegisEscrow** contract.
+2. **Quote.** The escrow asks **AegisRegistry** for the hirer's collateral tier and takes only that much USDC upfront.
+3. **Deliver.** The worker agent marks the job delivered.
+4. **Settle.** The hirer accepts (the worker is paid in full) or disputes (the hirer is refunded).
+5. **Record.** The escrow writes the outcome to the registry.
+6. **Rescore.** The **oracle** sees the new outcome…
+7. …sends the agent's job history to the **score service**, which returns a new score and its reasons…
+8. …and writes the score back to the registry on-chain.
+9. **Watch.** The **dashboard** shows every score, collateral level and reason, live.
 
-   | Score      | Upfront collateral |
-   | ---------- | ------------------ |
-   | `>= 800`   | 20%                |
-   | `>= 600`   | 40%                |
-   | `>= 400`   | 70%                |
-   | below / unknown | 100%          |
+## See it in 60 seconds
 
-3. **Dispute.** If the hirer disputes a delivery, settlement refunds the hirer's collateral,
-   the worker is not paid, and the outcome is recorded against the worker only. The
-   off-chain oracle rescores it. No human arbitrator. Known limitation: the hirer can
-   dispute any delivery at no cost to its own score (SPEC.md, intro).
+Three agents on a live local chain. One command starts everything:
 
----
-
-## Repository layout
-
-```
-aegis/
-  SPEC.md          Frozen type definitions. Source of truth.
-  contracts/       Foundry project — AegisRegistry, AegisEscrow, MockUSDC; StubEscrow fallback
-  score/           Python — synthetic data, logistic regression, FastAPI scoring service
-  agents/          Demo agents, seeding script, stand-in hirer driver
-  web/             Product site: landing, /dashboard (live), /how-it-works. Vite + React.
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\demo.ps1
 ```
 
----
+When the **CONTROL** window says **READY**, type:
 
-## Contracts
+| Command | What happens | What you see |
+| --- | --- | --- |
+| `honest` | A hirer with score 877 posts a $500 job for **HonestAgent**. It does the work and gets paid. | Hirer posts **$100, not $500**. HonestAgent **864 → 871 (+7)**. |
+| `sloppy` | **SloppyAgent** fakes the work. The hirer disputes, and the escrow refunds the hirer by rule. | SloppyAgent **613 → 382 (−231)**. Its collateral jumps **40% → 100%**. |
+| `multi` | One hirer opens **5 jobs at once** with HonestAgent. | Five jobs run concurrently, all settle, five rescores: **871 → 906**. |
+| `swarm` | **5 different, never-scored hirers** hire HonestAgent at the same time. | Unknown hirers each post **100%**; every job settles. |
+| `reset` | A fresh chain and fresh seed history (about 40s). | Back to 864 / 613 / 877. |
 
-Foundry, Solidity `^0.8.20`, targeting Base Sepolia.
+The dashboard at <http://localhost:5173/dashboard> updates within about 2 seconds of each step.
 
-`AegisRegistry` holds every agent's profile and answers the one question the escrow needs:
-*how much collateral does this address have to post?*
+> Run `honest` and `sloppy` first, `multi` and `swarm` after. Use `reset` before each full run-through.
 
-```bash
-cd contracts
-make build
-make test
-```
+## What is real
 
-To deploy:
+- **Smart contracts** for the registry and the escrow, written in Solidity and covered by **71 Foundry tests**, including every illegal state transition.
+- **Real token movement.** Collateral is taken at job creation, the remainder at settlement, and refunds happen on a dispute, all through the escrow contract in test USDC.
+- **A trained model.** A logistic regression over seven features, with an ROC AUC of 0.82. The score is calibrated so a new agent starts at exactly 500.
+- **An explanation with every score.** For example: *"lost dispute on $500 job (−231); top factor: more prior defaults than peers"*. That text is written on-chain with the score.
+- **Advisory risk flags** for manipulation patterns: a burst of disputes against one worker, a hirer that disputes far more than average, and a closed ring of agents trading only with each other. They are shown beside the score and never change it.
+- **Deployed on Base Sepolia**, with public addresses below. **66 Python tests** cover the score service.
 
-```bash
-cp .env.example .env    # then fill it in — .env is gitignored, never commit it
-make deploy-sepolia     # or: python script/deploy_sepolia.py
-```
-
-Contracts deployed on Base Sepolia (chain 84532), recorded in
-[deployments/base-sepolia.json](deployments/base-sepolia.json). Demo runs locally on Anvil for
-deterministic state and controllable time.
+## Deployed on Base Sepolia
 
 | Contract | Address |
 | --- | --- |
@@ -83,160 +90,144 @@ deterministic state and controllable time.
 | AegisEscrow | [`0x66266ec8FCE6190D507114C9EE91262eC887a9C4`](https://sepolia.basescan.org/address/0x66266ec8fce6190d507114c9ee91262ec887a9c4) |
 | MockUSDC | [`0x2fcb4eDe5a608166A1d13b78ae18e435C63e68cC`](https://sepolia.basescan.org/address/0x2fcb4ede5a608166a1d13b78ae18e435c63e68cc) |
 
-**MockUSDC is a test token with public mint, not Circle's USDC.** It stands in because there
-is no testnet USDC to hand. The deployer (`0x4234…76C1`) is both owner and score oracle.
-Contracts are not verified on BaseScan.
+The three demo agents are seeded there too, reading **864 / 613 / 877** on-chain. The live demo
+runs on a local Anvil chain for deterministic state. **MockUSDC is a test token, not Circle's
+USDC.** The contracts are not verified on BaseScan.
 
-`AegisEscrow` holds real (mock) USDC: it takes the hirer's collateral at `createJob` and the
-remainder at `settle`, and refunds the collateral on a lost dispute. See SPEC.md §6.
+## Known limitations
 
-### Access control
+We would rather you hear these from us:
 
-- `updateScore` — only the `scoreOracle` address. The score is written exclusively by the
-  off-chain model.
-- `recordOutcome` — only the `escrow` address. Updates counters and value handled, never
-  the score.
-- Both addresses are set by the `owner`.
+- **The model is trained on synthetic data.** No real agent-economy data exists yet.
+- **The oracle is a single key.** It is trusted to write scores; anyone can re-check a score by replaying the chain's outcomes through the public model.
+- **Disputes are one-sided.** A hirer can dispute any delivery at no cost to its own score. The serial-disputer flag surfaces this; it does not prevent it.
+- **Counterparty diversity is estimated** from job count, because outcomes don't yet record who the counterparty was.
+- **The demo agents are scripts.** HonestAgent's "work" is a 3-second wait, and the hirer's quality check is a timing rule. The contracts, oracle and scoring they drive are real.
+- **x402 is not integrated.** x402 settles 100% upfront; AEGIS is designed as the credit layer in front of it.
 
----
+## Tech stack
 
-## Score service
+| Layer | Technology |
+| --- | --- |
+| Contracts | Solidity 0.8.20, Foundry, OpenZeppelin |
+| Chain | Base Sepolia (public), Anvil (demo) |
+| Oracle | Python, web3.py |
+| Scoring | Python, FastAPI, scikit-learn |
+| Agents | Python, web3.py |
+| Website | React, Vite |
 
-Python, FastAPI, scikit-learn. No database. Every response comes from the fitted model,
-which is trained entirely on synthetic data (`generate_data.py`): no real agent-economy data
-exists yet.
+## Repository layout
 
-```bash
-cd score
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-# source .venv/bin/activate     # macOS / Linux
-pip install -r requirements.txt
-
-python generate_data.py         # writes data/agents.csv
-python train.py                 # fits the model, prints AUC, writes models/
-pytest tests/ -v
-uvicorn app:app --reload        # http://127.0.0.1:8000/docs
+```
+aegis/
+├── contracts/   Solidity: AegisRegistry, AegisEscrow, MockUSDC (+ StubEscrow fallback), Foundry tests
+├── score/       Score service: synthetic data, model training, FastAPI, tests
+├── oracle/      Watches the chain, rescores agents, writes scores on-chain
+├── agents/      HonestAgent, SloppyAgent, the hirer drivers, seeding scripts
+├── web/         Website: landing page, live dashboard, how it works, docs
+├── scripts/     One-command demo launcher (Windows PowerShell)
+├── deployments/ Deployed addresses (Base Sepolia)
+├── docs/        Architecture diagram, sample dashboard data
+└── SPEC.md      The single source of truth for every shared type and rule
 ```
 
-### Endpoints
-
-| Method | Path                 | Purpose                                                |
-| ------ | -------------------- | ------------------------------------------------------ |
-| `GET`  | `/health`            | Liveness plus whether the model is loaded.              |
-| `POST` | `/score`             | Score an agent from the seven features.                 |
-| `POST` | `/score/from-events` | Derive features from raw job events, then score.        |
-| `GET`  | `/agents/state`      | Everything the dashboard renders. Sample: [docs/api_stub.json](docs/api_stub.json). |
-| `PUT`  | `/internal/agents/state` | Oracle-only: pushes its in-memory state. Not for the dashboard. |
-
-`/agents/state` is served from the snapshot the oracle pushes after every rescore and on a 3s
-heartbeat. It makes no chain reads and needs no database; the dashboard must never touch web3.
-Band, collateral percentage and deltas are all computed server-side. A test keeps the live
-response identical in shape to `docs/api_stub.json`.
-
-Set `AEGIS_STATE_CHAIN=base-sepolia` to serve `/agents/state` from that chain instead: one
-`getProfile` per agent in `deployments/base-sepolia.json`, scored by the service itself and
-cached for 5s. No event replay: cards show no score movement, and the activity feed is the seeded history recorded in
-`docs/api_stub.json` (live-demo jobs dropped), labelled on the dashboard as a local run (`source: "chain"`).
-Unset (the default), the local oracle path is used unchanged.
-
-`/score` returns the score, the band, the required collateral in basis points, the raw
-default probability, and `top_factors` — the three features that moved the score most,
-each with a signed point impact and a plain-English explanation.
-
-`/score/from-events` takes a list of `{delivered, disputed, value_usd, timestamp}` job
-events and derives the features itself, so live chain events can be fed straight in.
+**[SPEC.md](SPEC.md)** defines every shared type, the state machine, the collateral curve and the
+scoring calibration. Read it for the full design.
 
 ---
 
-## Oracle (local)
+## Developer guide
 
-Polls the Registry for `OutcomeRecorded`, rebuilds the agent's history, calls
-`/score/from-events`, and writes `updateScore(agent, score, reason)` from Anvil account 0.
-History is in memory and replayed from block 0 on every start, so Anvil restarts are safe.
+<details>
+<summary><b>Prerequisites and first-time setup</b></summary>
+
+Windows with PowerShell, [Foundry](https://getfoundry.sh), Python 3.10+, Node.js 20+.
 
 ```bash
-anvil                                          # terminal 1
-cd contracts && python script/deploy_local.py  # writes deployments/local.json
-cd score && uvicorn app:app                    # terminal 2
-# the rest run from the repo root
+# score service: data, model, tests
+cd score
+python -m venv .venv && .venv\Scripts\pip install -r requirements.txt
+.venv\Scripts\python generate_data.py      # writes data/agents.csv
+.venv\Scripts\python train.py              # fits the model, prints AUC, writes models/
+.venv\Scripts\python -m pytest tests/ -q
+cd ..
+
+# oracle and agents (from the repo root)
 python -m venv oracle\.venv && oracle\.venv\Scripts\pip install -r oracle\requirements.txt
 python -m venv agents\.venv && agents\.venv\Scripts\pip install -r agents\requirements.txt
 copy oracle\.env.example oracle\.env
-oracle\.venv\Scripts\python oracle\watcher.py   # terminal 3
+
+# contracts
+cd contracts && forge build && forge test && cd ..
+
+# website
+cd web && npm install && cd ..
 ```
 
-The local deploy wires in the real `AegisEscrow` with `MockUSDC` (6 decimals, $1M minted to
-accounts 1-3), so jobs move real test tokens. `StubEscrow` stays as a fallback (no tokens,
-disputes always against the worker). Switch with:
+Then start everything with `powershell -ExecutionPolicy Bypass -File scripts\demo.ps1`.
+
+</details>
+
+<details>
+<summary><b>Running each piece by hand</b></summary>
 
 ```bash
-agents\.venv\Scripts\python agents\select_escrow.py          # which one is active, and is the Registry wired to it
-agents\.venv\Scripts\python agents\select_escrow.py --stub   # fall back to StubEscrow
-agents\.venv\Scripts\python agents\select_escrow.py --real   # back to AegisEscrow
+anvil                                            # terminal 1
+cd contracts && python script/deploy_local.py    # writes deployments/local.json
+cd score && .venv\Scripts\python -m uvicorn app:app --port 8000     # terminal 2
+oracle\.venv\Scripts\python oracle\watcher.py    # terminal 3
+agents\.venv\Scripts\python agents\seed_demo.py  # seed history: 864 / 613 / 877
+agents\.venv\Scripts\python agents\honest_agent.py                  # terminal 4
+agents\.venv\Scripts\python agents\sloppy_agent.py                  # terminal 5
+agents\.venv\Scripts\python agents\demo_driver.py --worker HonestAgent
+agents\.venv\Scripts\python agents\multi_driver.py parallel         # or: swarm
+cd web && npm run build && npm run preview       # http://localhost:5173
 ```
 
-Restart the oracle and both agents after switching.
+- **Seeding** gives the demo agents a prior track record so they don't start cold. Account age comes from a stored `registeredAt`, not from moving the chain clock. After a live run, restart Anvil and redeploy to seed again. Run the live demo within a day of seeding for the exact numbers above.
+- **`demo_driver.py`** is the stand-in hirer. It disputes any delivery that comes back in under 2 seconds, and exits loudly if the hirer is ever recorded as a default.
+- **`select_escrow.py --stub | --real`** switches between the real escrow and a token-free fallback.
 
-### Seeding the demo agents
+</details>
+
+<details>
+<summary><b>Score service API</b></summary>
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/health` | Liveness, and whether the model is loaded |
+| `POST` | `/score` | Score an agent from its seven features |
+| `POST` | `/score/from-events` | Derive the features from raw job events, then score |
+| `GET` | `/agents/state` | Everything the dashboard renders. Sample: [docs/api_stub.json](docs/api_stub.json) |
+| `PUT` | `/internal/agents/state` | Oracle only: pushes its state and escrow job facts |
+
+- Band, collateral, deltas and risk flags are all computed server-side.
+- Set `AEGIS_STATE_CHAIN=base-sepolia` to serve `/agents/state` straight from the Base Sepolia registry (one `getProfile` per agent, cached for 5s) instead of the local oracle.
+- `/dashboard?stub=1` renders the sample data offline, and `?api=` points the dashboard at another score service.
+
+</details>
+
+<details>
+<summary><b>Deploying to Base Sepolia</b></summary>
 
 ```bash
-agents\.venv\Scripts\python agents\seed_demo.py
+cd contracts
+cp .env.example .env            # BASE_SEPOLIA_RPC_URL and PRIVATE_KEY; .env is gitignored
+python script/deploy_sepolia.py # deploys and wires everything, writes deployments/base-sepolia.json
+cd ..
+agents\.venv\Scripts\python agents\seed_sepolia.py   # optional: seed the demo agents there
 ```
 
-Gives HonestAgent (account 1) and SloppyAgent (account 2) a prior track record so the demo
-does not start from a cold file: ~864 / excellent and ~613 / good. The driver's hirer
-(account 3) is seeded too (~877), so it hires on 20% collateral instead of 100%. Idempotent; after a live
-run, restart anvil and redeploy to seed again.
+The deployer becomes both the owner and the score oracle.
 
-### Running the agents
+</details>
 
-```bash
-agents\.venv\Scripts\python agents\honest_agent.py          # terminal 4
-agents\.venv\Scripts\python agents\sloppy_agent.py          # terminal 5
-agents\.venv\Scripts\python agents\demo_driver.py --worker SloppyAgent   # one job, end to end
-```
+<details>
+<summary><b>The one invariant that matters</b></summary>
 
-`demo_driver.py` is a stand-in hirer: it posts a job, disputes any delivery that comes back
-in under 2s (SloppyAgent) and accepts the rest (HonestAgent), settles, and prints the rescore.
-With the real escrow it approves the full job value (collateral is taken at `createJob`, the
-rest at `settle`), prints the hirer's mUSDC balance at each step, and exits non-zero if the
-hirer is ever recorded as a default -- the escrow's silent failure when under-approved.
-Agents talk to the escrow only through the `IAegisEscrow` ABI; see `agents/escrow.py` for
-where the real escrow plugs in.
+The collateral table is duplicated in `contracts/src/AegisRegistry.sol` (`requiredCollateralBps`)
+and `score/app.py` (`required_collateral_bps`). If they disagree, the service quotes a
+collateral level the chain refuses to honour. Change both together, or neither. The Python
+tests check against a hand-written copy of the contract's table; they do not read the Solidity.
 
----
-
-## Website
-
-```bash
-cd web
-npm install
-npm run build && npm run preview   # http://localhost:5173  (/, /dashboard, /how-it-works)
-```
-
-`/dashboard` polls `GET /agents/state` on the score service every 1.5s and renders it as-is.
-`/dashboard?stub=1` renders `docs/api_stub.json` instead, for offline previews; `?api=` points
-it at another score service. The whole demo, website included, starts with
-`powershell -ExecutionPolicy Bypass -File scripts\demo.ps1`.
-
----
-
-## The one invariant that matters
-
-The collateral step table is duplicated in two places:
-
-- `contracts/src/AegisRegistry.sol` — `requiredCollateralBps`
-- `score/app.py` — `required_collateral_bps`
-
-If those two ever disagree, the demo is broken: the score service quotes a collateral
-requirement the chain refuses to honour. Both copies carry a comment pointing at
-[SPEC.md §3](SPEC.md#3-collateral-curve). Change both together, or neither. The Python
-test suite checks the Python table against a hand-written copy of the contract's table. It
-does not read the Solidity, so a change made only in the contract would not be caught.
-
----
-
-## Not built yet
-
-- x402 integration
+</details>
